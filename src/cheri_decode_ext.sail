@@ -62,11 +62,17 @@
 
 
 function ext_post_decode_hook(x) : ast -> ast = {
-  if (PCC.flag_cap_mode) then match(x) {
-    UTYPE(imm, cd, RISCV_AUIPC) => AUIPCC(imm, cd),
+  match(x) {
+    UTYPE(imm, 0b0 @ cd : bits(4), RISCV_AUIPC) => AUIPCC(imm, 0b0 @ cd),
     RISCV_JAL(imm, cd) => CJAL(imm, cd),
     RISCV_JALR(imm, cs1, cd) => CJALR(imm, cs1, cd),
+    C_JAL(imm) => CJAL(EXTS(imm @ 0b0), ra),
+    C_JALR(rs1) => CJALR(EXTZ(0b0), rs1, ra),
+    C_J(imm) => CJAL(EXTS(imm @ 0b0), zreg),
+    C_JR(rs1) => CJALR(EXTZ(0b0), rs1, zreg),
+    C_MV(rd, 0b1 @ rs2 : bits(4)) => CMove(rd, 0b0 @ rs2),
+    C_ADDI4SPN(rdc, nzimm) => CIncAddrImmediate(creg2reg_idx(rdc), sp, EXTZ(nzimm @ 0b00)),
+    C_ADDI16SP(imm) => CIncAddrImmediate(sp, sp, EXTS(imm @ 0x0)),
     OTHERS => OTHERS
-  } else
-    x
+  }
 }

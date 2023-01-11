@@ -82,22 +82,6 @@ function rC r = {
     13 => x13,
     14 => x14,
     15 => x15,
-    16 => x16,
-    17 => x17,
-    18 => x18,
-    19 => x19,
-    20 => x20,
-    21 => x21,
-    22 => x22,
-    23 => x23,
-    24 => x24,
-    25 => x25,
-    26 => x26,
-    27 => x27,
-    28 => x28,
-    29 => x29,
-    30 => x30,
-    31 => x31,
     _  => internal_error("Invalid capability register")
   }
 }
@@ -105,6 +89,8 @@ function rC r = {
 /* writes a register with a capability value */
 val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
 function wC (r, v) = {
+  /* Encode and decode capability to normalise it prior to writing to register */
+  let v = encCapabilityToCapability(v.tag, capToEncCap(v));
   match r {
     0  => (),
     1  => x1 = v,
@@ -122,22 +108,6 @@ function wC (r, v) = {
     13 => x13 = v,
     14 => x14 = v,
     15 => x15 = v,
-    16 => x16 = v,
-    17 => x17 = v,
-    18 => x18 = v,
-    19 => x19 = v,
-    20 => x20 = v,
-    21 => x21 = v,
-    22 => x22 = v,
-    23 => x23 = v,
-    24 => x24 = v,
-    25 => x25 = v,
-    26 => x26 = v,
-    27 => x27 = v,
-    28 => x28 = v,
-    29 => x29 = v,
-    30 => x30 = v,
-    31 => x31 = v,
     _  => internal_error("Invalid capability register")
   };
   if (r != 0) then {
@@ -155,24 +125,13 @@ overload C = {rC_bits, wC_bits, rC, wC}
 
 val ext_init_regs : unit -> unit effect {wreg}
 function ext_init_regs () = {
-  PCC = default_cap;
-  DDC = default_cap;
-  nextPCC = default_cap;
+  PCC = root_cap_exe;
+  nextPCC = root_cap_exe;
 
-  UTCC = default_cap;
-  UTDC = null_cap;
-  UScratchC = null_cap;
-  UEPCC = default_cap;
-
-  STCC = default_cap;
-  STDC = null_cap;
-  SScratchC = null_cap;
-  SEPCC = default_cap;
-
-  MTCC = default_cap;
-  MTDC = null_cap;
-  MScratchC = null_cap;
-  MEPCC = default_cap;
+  MTCC = root_cap_mem;
+  MTDC = root_cap_mem;
+  MScratchC = root_cap_seal;
+  MEPCC = root_cap_exe;
 
   x1  = null_cap;
   x2  = null_cap;
@@ -222,37 +181,37 @@ function ext_init_regs () = {
  */
 val ext_rvfi_init : unit -> unit effect {wreg}
 function ext_rvfi_init () = {
-  x1  = default_cap;
-  x2  = default_cap;
-  x3  = default_cap;
-  x4  = default_cap;
-  x5  = default_cap;
-  x6  = default_cap;
-  x7  = default_cap;
-  x8  = default_cap;
-  x9  = default_cap;
-  x10 = default_cap;
-  x11 = default_cap;
-  x12 = default_cap;
-  x13 = default_cap;
-  x14 = default_cap;
-  x15 = default_cap;
-  x16 = default_cap;
-  x17 = default_cap;
-  x18 = default_cap;
-  x19 = default_cap;
-  x20 = default_cap;
-  x21 = default_cap;
-  x22 = default_cap;
-  x23 = default_cap;
-  x24 = default_cap;
-  x25 = default_cap;
-  x26 = default_cap;
-  x27 = default_cap;
-  x28 = default_cap;
-  x29 = default_cap;
-  x30 = default_cap;
-  x31 = default_cap;
+  x1  = root_cap_mem;
+  x2  = root_cap_mem;
+  x3  = root_cap_mem;
+  x4  = root_cap_mem;
+  x5  = root_cap_mem;
+  x6  = root_cap_mem;
+  x7  = root_cap_mem;
+  x8  = root_cap_mem;
+  x9  = root_cap_mem;
+  x10 = root_cap_mem;
+  x11 = root_cap_mem;
+  x12 = root_cap_mem;
+  x13 = root_cap_mem;
+  x14 = root_cap_mem;
+  x15 = root_cap_mem;
+  x16 = root_cap_mem;
+  x17 = root_cap_mem;
+  x18 = root_cap_mem;
+  x19 = root_cap_mem;
+  x20 = root_cap_mem;
+  x21 = root_cap_mem;
+  x22 = root_cap_mem;
+  x23 = root_cap_mem;
+  x24 = root_cap_mem;
+  x25 = root_cap_mem;
+  x26 = root_cap_mem;
+  x27 = root_cap_mem;
+  x28 = root_cap_mem;
+  x29 = root_cap_mem;
+  x30 = root_cap_mem;
+  x31 = root_cap_mem;
 }
 
 /* register names */
@@ -279,3 +238,14 @@ mapping cap_reg_name = {
 mapping cap_creg_name : bits(3) <-> string = {
   r <-> "c" ^ creg_name(r)
 }
+
+function string_of_capreg_idx(reg : capreg_idx) -> string =
+  match reg {
+    0b0 @ greg : bits(5) => "c" ^ string_of_int(unsigned(greg)) ^ "/" ^ cap_reg_name_abi(greg),
+    0b100000 => "PCC",
+    0b111101 => "MTCC",
+    0b111101 => "MTDC",
+    0b111110 => "MScratchC",
+    0b111111 => "EPCC",
+    _        => "Unknown/" ^ BitStr(reg),
+  }

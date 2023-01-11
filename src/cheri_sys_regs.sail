@@ -108,16 +108,6 @@ function clause ext_is_CSR_defined (0xBC0, p) = p == Machine | p == Supervisor /
 
 register PCC       : Capability
 register nextPCC   : Capability
-register DDC       : Capability
-
-register UTCC      : Capability
-register UTDC      : Capability
-register UScratchC : Capability
-register UEPCC     : Capability
-register STCC      : Capability
-register STDC      : Capability
-register SScratchC : Capability
-register SEPCC     : Capability
 register MTCC      : Capability
 register MTDC      : Capability
 register MScratchC : Capability
@@ -137,24 +127,22 @@ function haveXcheri () -> bool =
   /* This is a necessary but not sufficient condition, but should do for now. */
   misa.X() == 0b1
 
-
+/*!
+ * Apply tvec legalization to the address of new tcc when assigning in CSpecialRW.
+ * If legalisation causes the new tcc to be unrepresentable, or if v is sealed
+ * then the tag of the new tcc will be cleared. This would cause an infinite
+ * exception loop if a trap or exception occurred subsequently.
+ */
 function legalize_tcc(o : Capability, v : Capability) -> Capability = {
-  new_base = getCapBaseBits(v);
-  /* Ignore writes that attempt to set unaligned TCC base */
-  if new_base[0] != bitzero | new_base[1] != bitzero then
-    o /* keep original TCC value */
-  else {
-    /* legalize new TCC offset (RISC-V tvec) */
-    new_tvec = v.address - new_base;
-    legalized_tvec = legalize_tvec(Mk_Mtvec(getCapOffsetBits(o)), new_tvec);
-    setCapOffsetChecked(v, legalized_tvec.bits())
-  }
+  /* legalize new TCC offset (RISC-V tvec) */
+  new_tvec = v.address;
+  legalized_tvec = legalize_tvec(Mk_Mtvec(o.address), new_tvec);
+  setCapAddrChecked(v, legalized_tvec.bits());
 }
 
 /*
  * Used during readout (but not assignment!) of ?EPCC registers (CSpecialRW,
- * handle_trap_extension) and not during control transfer
- * (prepare_xret_target).
+ * handle_trap_extension) and during control transfer (prepare_xret_target).
  *
  * The result is that it is only possible to faithfully read out ?EPCC if
  * either
@@ -171,10 +159,10 @@ function legalize_tcc(o : Capability, v : Capability) -> Capability = {
  * untagged lie.
  */
 function legalize_epcc (v : Capability) -> Capability = {
-  let voffset = getCapOffsetBits(v);
+  let voffset = v.address;
   let legalized = legalize_xepc(voffset);
 
   if   legalized == voffset
   then v /* avoid possibly attempting to set the offset of a sentry */
-  else setCapOffsetChecked(v, legalized)
+  else setCapAddrChecked(v, legalized) /* will clear tag if v is sealed or new address unrepresentable */
 }

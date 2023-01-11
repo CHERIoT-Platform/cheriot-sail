@@ -60,48 +60,111 @@
 /*  SUCH DAMAGE.                                                                         */
 /*=======================================================================================*/
 
-let cap_max_addr = MAX(cap_addr_width)
-let cap_max_otype = MAX(cap_otype_width) - reserved_otypes
+/* width of capability in bytes (excluding tag) */
+type cap_size : Int = 8
+let  cap_size = sizeof(cap_size)
+type log2_cap_size : Int = 3
+let  log2_cap_size = sizeof(log2_cap_size)
+type CapBits = bits(8 * cap_size)
+/*! Width of compressed perms field in bits */
+type cap_cperms_width : Int = 6
 
-type cap_uperms_shift : Int = 15
-let  cap_uperms_shift = sizeof(cap_uperms_shift)
-type cap_perms_width : Int = cap_uperms_shift + cap_uperms_width
+/*! Width of architectural otype field in bits */
+type cap_otype_width : Int = 4
+let  cap_otype_width = sizeof(cap_otype_width)
+/*! Width of compressed otype field in bits */
+type cap_cotype_width : Int = 3
+/*! Width of T and B field in bits */
+type cap_mantissa_width : Int = 9
+let  cap_mantissa_width = sizeof(cap_mantissa_width)
+/*! Width of expanded exponent field in bits */
+type cap_E_width : Int = 5
+let  cap_E_width = sizeof(cap_E_width)
+/*! Width of compressed exponent field in bits */
+type cap_cE_width : Int = 4
+type cap_addr_width : Int = xlen
+let  cap_addr_width = sizeof(cap_addr_width)
+/*! Cap length width is one larger than address space width in order to 
+ represent maximum top / length of 2**xlen. */
+type cap_len_width : Int = cap_addr_width + 1
+let  cap_len_width = sizeof(cap_len_width)
+
+/*!
+ * There is one revocation bit for every 8 bytes.
+ */
+type log2_revocation_granule_size : Int = 3
+let  log2_revocation_granule_size = sizeof(log2_revocation_granule_size)
+
+/*! THIS represents capabilities as stored in memory. */
+struct EncCapability = {
+  reserved   : bits(1),
+  cperms     : bits(cap_cperms_width),
+  cotype     : bits(cap_cotype_width),
+  cE         : bits(cap_cE_width),
+  T          : bits(cap_mantissa_width),
+  B          : bits(cap_mantissa_width),
+  address    : bits(cap_addr_width)
+}
+
+function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
+  reserved   = c[63..63],
+  cperms     = c[62..57],
+  cotype     = c[56..54],
+  cE         = c[53..50],
+  T          = c[49..41],
+  B          = c[40..32],
+  address    = c[31..0]
+}
+
+function encCapToBits(cap) : EncCapability -> CapBits =
+  cap.reserved @
+  cap.cperms @
+  cap.cotype @
+  cap.cE @
+  cap.T @
+  cap.B @
+  cap.address
+
+let cap_max_addr = MAX(cap_addr_width)
+let cap_max_otype = MAX(cap_otype_width)
+
+/*! Width of the architectural perms returned by CGetPerms. */
+type cap_perms_width : Int = 12
 let  cap_perms_width = sizeof(cap_perms_width)
 
 type CapAddrBits  = bits(cap_addr_width)
 type CapAddrInt   = range(0, (2 ^ cap_addr_width) - 1)
 type CapLenBits   = bits(cap_len_width)
-type CapLen       = range(0, (2 ^ cap_len_width))
+type CapLen       = range(0, (2 ^ cap_len_width) - 1)
 type CapPermsBits = bits(cap_perms_width)
-type CapFlagsBits = bits(cap_flags_width)
 
-/* Reset E and T calculated to make top 2**xlen. */
-let cap_max_E   = cap_len_width - cap_mantissa_width + 1
-let cap_reset_E = to_bits(cap_E_width, cap_max_E)
-let cap_reset_T = 0b01 @ zeros(cap_mantissa_width - 2)
+/*! Exponent chosen to permit representing the entire address space. */
+type cap_max_E : Int = 24
+let cap_max_E = sizeof(cap_max_E)
+let cap_max_E_bits = to_bits(cap_E_width, sizeof(cap_max_E))
+/* Value for T field that represents max value of top (2**32) when used with cap_max_E. */
+let cap_reset_T = 0b1 @ zeros(cap_mantissa_width - 1)
 
-/*! A partially decompressed version of a capability -- E, B, T,
- * lenMSB, sealed and otype fields are not present in all formats and are
- * populated by capBitsToCapability.
+/*!
+ * THIS represents a partially decompressed capability. The
+ * permissions, E and otype are expanded from their compressed format by
+ * [encCapabilityToCapability] and compressed by [capToEncCap].
  */
 struct Capability = {
   tag                    : bool,
-  uperms                 : bits(cap_uperms_width),
-  permit_set_CID         : bool,
-  access_system_regs     : bool,
-  permit_unseal          : bool,
-  permit_cinvoke         : bool,
+  perm_user0             : bool,
   permit_seal            : bool,
-  permit_store_local_cap : bool,
-  permit_store_cap       : bool,
-  permit_load_cap        : bool,
-  permit_store           : bool,
-  permit_load            : bool,
+  permit_unseal          : bool,
   permit_execute         : bool,
+  access_system_regs     : bool,
+  permit_load_store_cap  : bool,
+  permit_load            : bool,
+  permit_store_local_cap : bool,
+  permit_load_mutable    : bool,
+  permit_store           : bool,
+  permit_load_global     : bool,
   global                 : bool,
-  reserved               : bits(cap_reserved_width),
-  flag_cap_mode          : bool,
-  internal_E             : bool,
+  reserved               : bits(1),
   E                      : bits(cap_E_width),
   B                      : bits(cap_mantissa_width),
   T                      : bits(cap_mantissa_width),
@@ -109,312 +172,370 @@ struct Capability = {
   address                : bits(cap_addr_width)
 }
 
+/* The null capability is defined as all zeros, with tag unset. */
 let null_cap : Capability = struct {
   tag                    = false,
-  uperms                 = zeros(),
-  permit_set_CID         = false,
-  access_system_regs     = false,
-  permit_unseal          = false,
-  permit_cinvoke         = false,
+  perm_user0             = false,
   permit_seal            = false,
-  permit_store_local_cap = false,
-  permit_store_cap       = false,
-  permit_load_cap        = false,
-  permit_store           = false,
-  permit_load            = false,
+  permit_unseal          = false,
   permit_execute         = false,
+  access_system_regs     = false,
+  permit_load_store_cap  = false,
+  permit_load            = false,
+  permit_store_local_cap = false,
+  permit_load_mutable    = false,
+  permit_store           = false,
+  permit_load_global     = false,
   global                 = false,
   reserved               = zeros(),
-  flag_cap_mode          = false,
-  internal_E             = true,
-  E                      = cap_reset_E,
   B                      = zeros(),
-  T                      = cap_reset_T,
+  T                      = zeros(),
+  E                      = zeros(),
   otype                  = to_bits(cap_otype_width, otype_unsealed),
   address                = zeros()
 }
 
-let default_cap : Capability = struct {
+/* A capability from which to derive the root caps. E and T are set such that 
+  the bounds decode to the entire address space, and tag and global are set.
+  These things are are common to all root caps. For convenience it is derived 
+  from null_cap. */
+let max_bounds_cap : Capability = {
+  null_cap with
+  E                      = cap_max_E_bits,
+  T                      = cap_reset_T,
   tag                    = true,
-  uperms                 = ones(),
-  permit_set_CID         = true,
-  access_system_regs     = true,
-  permit_unseal          = true,
-  permit_cinvoke         = true,
-  permit_seal            = true,
-  permit_store_local_cap = true,
-  permit_store_cap       = true,
-  permit_load_cap        = true,
-  permit_store           = true,
-  permit_load            = true,
-  permit_execute         = true,
-  global                 = true,
-  reserved               = zeros(),
-  flag_cap_mode          = false,
-  internal_E             = true,
-  E                      = cap_reset_E,
-  B                      = zeros(),
-  T                      = cap_reset_T,
-  otype                  = to_bits(cap_otype_width, otype_unsealed),
-  address                = zeros()
+  global                 = true
 }
 
-function getCapHardPerms(cap) : Capability -> bits(cap_hperms_width) =
-   (bool_to_bits(cap.permit_set_CID)
-  @ bool_to_bits(cap.access_system_regs)
-  @ bool_to_bits(cap.permit_unseal)
-  @ bool_to_bits(cap.permit_cinvoke)
-  @ bool_to_bits(cap.permit_seal)
-  @ bool_to_bits(cap.permit_store_local_cap)
-  @ bool_to_bits(cap.permit_store_cap)
-  @ bool_to_bits(cap.permit_load_cap)
-  @ bool_to_bits(cap.permit_store)
-  @ bool_to_bits(cap.permit_load)
-  @ bool_to_bits(cap.permit_execute)
-  @ bool_to_bits(cap.global))
+/* The capability root for executable format capabilities. */
+let root_cap_exe : Capability = {
+  max_bounds_cap with
+  permit_execute         = true,
+  access_system_regs     = true,
+  permit_load_store_cap  = true,
+  permit_load            = true,
+  permit_load_mutable    = true,
+  permit_load_global     = true
+}
 
-/* Convert from capability bits (128 bits with tag) to a more convenient struct. */
+/* The capability root for memory format capabilities. */
+let root_cap_mem : Capability = {
+  max_bounds_cap with
+  permit_load_store_cap  = true,
+  permit_load            = true,
+  permit_store_local_cap = true,
+  permit_load_mutable    = true,
+  permit_store           = true,
+  permit_load_global     = true
+}
+
+/* The capability root for sealing format capabilities. */
+let root_cap_seal : Capability = {
+  max_bounds_cap with
+  perm_user0             = true,
+  permit_seal            = true,
+  permit_unseal          = true
+}
+
+/*! Partially decompress a capability from bits to a [Capability] struct.
+  Permissions, otype and exponent are decompressed, but the bounds are left
+  in the form of B and T fields. */
 function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = {
-  internal_E : bool = bit_to_bool(c.internal_E);
-  E : bits(cap_E_width)  = zeros();
-  Bs : bits(cap_mantissa_width) = zeros();
-  T : bits(cap_mantissa_width - 2) = zeros();
-  lenMSBs : bits(2) = zeros();
-  if internal_E then {
-    E = c.T[internal_E_take_bits - 1..0] @ c.B[internal_E_take_bits - 1..0];
-    /* Exponent chosen so that length MSBs is 01 */
-    lenMSBs = 0b01;
-    T = c.T[cap_mantissa_width - 3..3] @ zeros(internal_E_take_bits);
-    Bs = c.B[cap_mantissa_width - 1..3] @ zeros(internal_E_take_bits);
-  } else {
-    /* Exponent zero */
-    lenMSBs = 0b00;
-    T = c.T;
-    Bs = c.B;
+  var perm_user0             : bool = false;
+  var permit_seal            : bool = false;
+  var permit_unseal          : bool = false;
+  var permit_execute         : bool = false;
+  var access_system_regs     : bool = false;
+  var permit_load_store_cap  : bool = false;
+  var permit_load            : bool = false;
+  var permit_store_local_cap : bool = false;
+  var permit_load_mutable    : bool = false;
+  var permit_store           : bool = false;
+  var permit_load_global     : bool = false;
+  var global                 : bool = bit_to_bool(c.cperms[5]);
+  var isExe : bool = false;
+  match c.cperms[4..0] {
+    0b11 @ [SL, LM, LG] => {
+      /* mem-rw-cap format */
+      permit_load = true;
+      permit_load_store_cap = true;
+      permit_store = true;
+      permit_store_local_cap = bit_to_bool(SL);
+      permit_load_mutable = bit_to_bool(LM);
+      permit_load_global = bit_to_bool(LG);
+    },
+    0b101 @ [LM, LG] => {
+      /* mem-ro-cap format */
+      permit_load = true;
+      permit_load_store_cap = true;
+      permit_load_mutable = bit_to_bool(LM);
+      permit_load_global = bit_to_bool(LG);
+    },
+    0b10000 => {
+      /* mem-wo-cap */
+      permit_store = true;
+      permit_load_store_cap = true;
+    },
+    0b100 @ [LD, SD] => {
+      /* mem-data */
+      permit_load = bit_to_bool(LD);
+      permit_store = bit_to_bool(SD);
+    },
+    0b01 @ [SR, LM, LG] => {
+      /* Executable format */
+      isExe = true;
+      permit_execute = true;
+      permit_load = true;
+      permit_load_store_cap = true;
+      access_system_regs  = bit_to_bool(SR);
+      permit_load_mutable = bit_to_bool(LM);
+      permit_load_global  = bit_to_bool(LG);
+    },
+    0b00 @ [U0, SE, US] => {
+      /* Sealing format */
+      perm_user0    = bit_to_bool(U0);
+      permit_seal   = bit_to_bool(SE);
+      permit_unseal = bit_to_bool(US);
+    }
   };
-  /* Reconstruct top two bits of T given T = B + len and:
-   * 1) the top two bits of B
-   * 2) most significant two bits of length derived from format above
-   * 3) carry out of B[20..0] + len[20..0] that is implied if T[20..0] < B[20..0]
-   */
-  carry_out = if T <_u Bs[cap_mantissa_width - 3..0] then 0b01 else 0b00;
-  Ttop2 = Bs[cap_mantissa_width - 1..cap_mantissa_width - 2] + lenMSBs + carry_out;
+  /* The otype of executable caps is mapped to 1-7 and others to 9-15. Unsealed
+    is always 0. */
+  let otype = (if isExe | c.cotype == 0b000 then 0b0 else 0b1) @ c.cotype;
+  /* The 4-bit exponent is expanded to 5 bits, using 0xf to encode a cap_max_E
+    value that enables representing the entire address space. */
+  let E = if c.cE == 0xf then cap_max_E_bits else EXTZ(c.cE);
   return struct {
     tag                    = t,
-    uperms                 = if cap_uperms_width > 0 then c.perms[cap_hperms_width + cap_uperms_width - 1..cap_hperms_width] else [],
-    permit_set_CID         = bit_to_bool(c.perms[11]),
-    access_system_regs     = bit_to_bool(c.perms[10]),
-    permit_unseal          = bit_to_bool(c.perms[9]),
-    permit_cinvoke         = bit_to_bool(c.perms[8]),
-    permit_seal            = bit_to_bool(c.perms[7]),
-    permit_store_local_cap = bit_to_bool(c.perms[6]),
-    permit_store_cap       = bit_to_bool(c.perms[5]),
-    permit_load_cap        = bit_to_bool(c.perms[4]),
-    permit_store           = bit_to_bool(c.perms[3]),
-    permit_load            = bit_to_bool(c.perms[2]),
-    permit_execute         = bit_to_bool(c.perms[1]),
-    global                 = bit_to_bool(c.perms[0]),
+    perm_user0             = perm_user0            ,
+    permit_seal            = permit_seal           ,
+    permit_unseal          = permit_unseal         ,
+    permit_execute         = permit_execute        ,
+    access_system_regs     = access_system_regs    ,
+    permit_load_store_cap  = permit_load_store_cap ,
+    permit_load            = permit_load           ,
+    permit_store_local_cap = permit_store_local_cap,
+    permit_load_mutable    = permit_load_mutable   ,
+    permit_store           = permit_store          ,
+    permit_load_global     = permit_load_global    ,
+    global                 = global                ,
     reserved               = c.reserved,
-    flag_cap_mode          = bit_to_bool(c.flags[0]),
-    internal_E             = internal_E,
     E                      = E,
-    B                      = Bs,
-    T                      = Ttop2 @ T,
-    otype                  = c.otype,
+    B                      = c.B,
+    T                      = c.T,
+    otype                  = otype,
     address                = c.address
   }
 }
 
 function capBitsToCapability(t, c) : (bool, CapBits) -> Capability = encCapabilityToCapability(t, capBitsToEncCapability(c))
 
+/*!
+ * Compress a [Capability] back to the bits representation. This is simply
+ * the reverse of [encCapabilityToCapability], although it relies on the fields
+ * having valid values. In particular E must be either cap_max_E or less than 15,
+ * and otype is either 0 (unsealed) or in the correct range for the capability format.
+ * Both of these will be true for things returned by [encCapabilityToCapability].
+ * [CSetBounds] ensures a sensible value for E and nothing else sets it. For the
+ * otype we rely on the fact that sealed capabilities cannot be modified and
+ * unsealed is always encoded as zero. It is mildy surprsing that [CAndPerm] on
+ * a sealed capability may result in a untagged capability with a different
+ * otype, but otypes have no significance on untagged capabilities anyway.
+ */
 function capToEncCap(cap) : Capability -> EncCapability = {
-  t_hi : bits(cap_mantissa_width - 2 - internal_E_take_bits) = cap.T[cap_mantissa_width - 3..internal_E_take_bits];
-  t_lo : bits(internal_E_take_bits)  = cap.T[internal_E_take_bits - 1..0];
-  b_hi : bits(cap_mantissa_width - internal_E_take_bits) = cap.B[cap_mantissa_width - 1..internal_E_take_bits];
-  b_lo : bits(internal_E_take_bits)  = cap.B[internal_E_take_bits - 1..0];
-  if cap.internal_E then {
-    t_lo = cap.E[2 * internal_E_take_bits - 1..internal_E_take_bits];
-    b_lo = cap.E[internal_E_take_bits - 1..0];
+  var cperms : bits(cap_cperms_width) = zeros();
+  cperms[5] = bool_to_bit(cap.global);
+  if cap.permit_execute & cap.permit_load & cap.permit_load_store_cap then {
+    /* Executable format */
+    cperms[4..3] = 0b01;
+    cperms[2] = bool_to_bit(cap.access_system_regs);
+    cperms[1] = bool_to_bit(cap.permit_load_mutable);
+    cperms[0] = bool_to_bit(cap.permit_load_global);
+  } else if cap.permit_load & cap.permit_load_store_cap & cap.permit_store then {
+    /* mem cap-rw */
+    cperms[4..3] = 0b11;
+    cperms[2] = bool_to_bit(cap.permit_store_local_cap);
+    cperms[1] = bool_to_bit(cap.permit_load_mutable);
+    cperms[0] = bool_to_bit(cap.permit_load_global);
+  } else if cap.permit_load & cap.permit_load_store_cap then {
+    /* mem cap-ro */
+    cperms[4..2] = 0b101;
+    cperms[1] = bool_to_bit(cap.permit_load_mutable);
+    cperms[0] = bool_to_bit(cap.permit_load_global);
+  } else if cap.permit_store & cap.permit_load_store_cap then {
+    /* mem cap-wo */
+    cperms[4..0] = 0b10000;
+  } else if cap.permit_load | cap.permit_store then {
+    /* mem rw data */
+    cperms[4..2] = 0b100;
+    cperms[1] = bool_to_bit(cap.permit_load);
+    cperms[0] = bool_to_bit(cap.permit_store);
+  } else {
+    /* Sealing format */
+    cperms[4..3] = 0b00;
+    cperms[2] = bool_to_bit(cap.perm_user0);
+    cperms[1] = bool_to_bit(cap.permit_seal);
+    cperms[0] = bool_to_bit(cap.permit_unseal);
   };
   return struct {
-    perms = cap.uperms @ getCapHardPerms(cap),
+    cperms = cperms,
     reserved = cap.reserved,
-    flags = bool_to_bits(cap.flag_cap_mode),
-    otype = cap.otype,
-    internal_E = bool_to_bits(cap.internal_E)[0],
-    T = t_hi @ t_lo,
-    B = b_hi @ b_lo,
+    cotype = cap.otype[2..0], /* truncate otype when compressing */
+    cE = if cap.E == cap_max_E_bits then 0xf else cap.E[3..0],
+    T = cap.T,
+    B = cap.B,
     address = cap.address
   };
 }
 
-/* Convert from capability struct to bits (no tag) */
+/*! Convert from capability struct to bits (no tag) */
 function capToBits(cap) : Capability -> CapBits = encCapToBits(capToEncCap(cap))
-
-/* When saving/restoring capabilities xor them with bits of null_cap --
- * this ensures that canonical null_cap is always all-zeros in memory
- * even though it may have bits set logically (e.g. length or exponent
- */
 
 let null_cap_bits : CapBits = capToBits(null_cap)
 
-function capToMemBits(cap) : Capability -> CapBits =
-  capToBits(cap) ^ null_cap_bits
-
-function memBitsToCapability(tag, b) : (bool, CapBits) -> Capability =
-  capBitsToCapability(tag, b ^ null_cap_bits)
-
-
-
-function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) =
-  let E = min(cap_max_E, unsigned(c.E)) in
-  let a : CapAddrBits = c.address in
-  /* Extract bits we need to make the top correction and calculate representable limit */
-  let a3 = truncate(a >> (E + cap_mantissa_width - 3), 3) in
-  let B3 = truncateLSB(c.B, 3) in
-  let T3 = truncateLSB(c.T, 3) in
-  let R3 = B3 - 0b001 in /* wraps */
-  /* Do address, base and top lie in the R aligned region above the one containing R? */
-  let aHi = if a3 <_u R3 then 1 else 0 in
-  let bHi = if B3 <_u R3 then 1 else 0 in
-  let tHi = if T3 <_u R3 then 1 else 0 in
-  /* Compute region corrections for top and base relative to a */
-  let correction_base = bHi - aHi in
-  let correction_top  = tHi - aHi in
-  let a_top = (a >> (E + cap_mantissa_width)) in {
-    base : CapLenBits = truncate((a_top + correction_base) @ c.B @ zeros(E), cap_len_width);
-    top  : CapLenBits = truncate((a_top + correction_top)  @ c.T @ zeros(E), cap_len_width);
-    /* If the base and top are more than an address space away from each other,
-       invert the MSB of top.  This corrects for errors that happen when the
-       representable space wraps the address space. */
-    let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
-    let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
-    if (E < (cap_max_E - 1)) & (unsigned(top2 - base2) > 1) then {
-      top[cap_addr_width] = ~(top[cap_addr_width]);
-    };
-    /* TODO The following top MSB correction was thought to be equivalent
-       to the one above, but differs at least in some cases where E >= cap_max_E - 1
-    if (base[cap_addr_width] == bitone) then {
-       top[cap_addr_width] = if (aHi == 1) & (tHi == 1) then bitone else bitzero;
-    };
-    */
-    (base[(cap_addr_width - 1)..0], top)
-  }
+/*!
+ * Returns the decoded base and top of the given Capability.
+ */
+function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = {
+  let E = unsigned(c.E);
+  let a : CapAddrBits = c.address;
+  /* Calculate corrections for upper bits of base and top based on relative 
+     positions of base, top and address with respect to 
+     2**(E+cap_mantissa_width) aligned regions */
+  let a_mid = truncate(a >> E, cap_mantissa_width);
+  /* If a_mid is less than B then a must be in region above base */
+  let a_hi = if a_mid <_u c.B then 1 else 0;
+  /* If T is less than B then top must be in region above base */
+  let t_hi = if c.T <_u c.B then 1 else 0;
+  /* If address is in region above base then we need to subtract one from a_top
+    to get top bits of base */
+  let c_b = 0 - a_hi;
+  /* The correction for top can be -1, 0, or 1 depending on whether a and t lie
+    in the same region and, if not, which is in the high region. This boils down
+    to a subtraction. */
+  let c_t = t_hi - a_hi;
+  let a_top = a >> (E + cap_mantissa_width);
+  /* Finally reconstruct the base and top using the corrections and truncate. */
+  let base : CapAddrBits = truncate((a_top + c_b) @ c.B @ zeros(E), cap_addr_width);
+  let top : CapLenBits  = truncate((a_top + c_t) @ c.T @ zeros(E), cap_len_width);
+  (base, top)
+}
+// XXX Not sure whether we need something like this.
+// /* If the base and top are more than an address space away from each other,
+//    invert the MSB of top.  This corrects for errors that happen when the
+//    representable space wraps the address space. */
+// let base2 : bits(2) = 0b0 @ [base[cap_addr_width - 1]];
+// let top2  : bits(2) = top[cap_addr_width .. cap_addr_width - 1];
+// if (E < (cap_max_E - 1)) & (unsigned(top2 - base2) > 1) then {
+//   top[cap_addr_width] = ~(top[cap_addr_width]);
+// };
 
 function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen) =
-  let (base, top) = getCapBoundsBits(cap) in
+  let (base : CapAddrBits, top : CapLenBits) = getCapBoundsBits(cap) in
   (unsigned(base), unsigned(top))
 
-/* An 'ideal' version of setCapBounds as described in paper. */
-function setCapBounds(cap, base, top) : (Capability, CapAddrBits, CapLenBits) -> (bool, Capability) = {
-  /* {cap with base=base; length=(bits(64)) length; offset=0} */
+/*!
+ * Returns cap with E, B and T set such that the decoded bounds include the
+ * region specified by base and length. If the region is not precisely
+ * representable the base may be rounded down and the length up. Also returns a
+ * boolean indicating whether the bounds are precisely representable, and sets
+ * the address of the returned capability to the requested base.
+ */
+function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits) -> (bool, Capability) = {
   let ext_base = 0b0 @ base;
-  let length = top - ext_base;
-  /* Find an exponent that will put the most significant bit of length
-   * second from the top as assumed during decoding. We ignore the bottom
-   * MW bits because those are handled by the ie = 0 format.
+  /* Compute new top, note extra bit in case of overflow */
+  let top : CapLenBits = ext_base + (0b0 @ length);
+  /* Find smallest exponent that can represent required length.
    */
-  let e = cap_max_E - count_leading_zeros(length[cap_addr_width..cap_mantissa_width - 1]);
-  // Use use internal exponent if e is non-zero or if e is zero but
-  // but the implied bit of length is not zero (denormal vs. normal case)
-  let ie = (e != 0) | length[cap_mantissa_width - 2] == bitone;
-
-  /* The non-ie e == 0 case is easy. It is exact so just extract relevant bits. */
-  Bbits = truncate(base, cap_mantissa_width);
-  Tbits = truncate(top, cap_mantissa_width);
-  lostSignificantTop : bool = false;
-  lostSignificantBase : bool = false;
-  incE : bool = false;
-
-  if ie then {
-    /* the internal exponent case is trickier */
-
-    /* Extract B and T bits (we lose 3 bits of each to store the exponent) */
-    B_ie = truncate(base >> (e + 3), cap_mantissa_width - 3);
-    T_ie = truncate(top >> (e + 3), cap_mantissa_width - 3);
-
-    /* Find out whether we have lost significant bits of base and top using a
-     * mask of bits that we will lose (including 3 extra for exp).
-     */
-    maskLo : CapLenBits = EXTZ(ones(e+3));
-    lostSignificantBase = unsigned(ext_base & maskLo) != 0;
-    lostSignificantTop  = unsigned(top & maskLo) != 0;
-
-    if lostSignificantTop then {
-      /* we must increment T to make sure it is still above top even with lost bits.
-         It might wrap around but if that makes B<T then decoding will compensate. */
-      T_ie = T_ie + 1;
-    };
-
-    /* Has the length overflowed? We chose e so that the top two bits of len would be 0b01,
-       but either because of incrementing T or losing bits of base it might have grown. */
-    len_ie = T_ie - B_ie;
-    if len_ie[cap_mantissa_width - 4] == bitone then {
-      /* length overflow -- increment E by one and then recalculate
-         T, B etc accordingly */
-      incE = true;
-
-      lostSignificantBase = lostSignificantBase | B_ie[0] == bitone;
-      lostSignificantTop  = lostSignificantTop | T_ie[0] == bitone;
-
-      B_ie = truncate(base >> (e + 4), cap_mantissa_width - 3);
-      let incT : range(0,1) = if lostSignificantTop then 1 else 0;
-      T_ie = truncate(top >> (e + 4), cap_mantissa_width - 3) + incT;
-    };
-
-    Bbits = B_ie @ 0b000;
-    Tbits = T_ie @ 0b000;
+  let e : range(0, 23) = 23 - count_leading_zeros(truncateLSB(length, 23));
+  /* Saturate e at max if it exceeds representable 4-bit value. */
+  var e_sat : range(0,  cap_max_E) = if e > 14 then cap_max_E else e;
+  /* Extract B and T bits from base and top, include a spare bit so that we can
+   check for length overflow below. */
+  var B = truncate(base >> e_sat, cap_mantissa_width + 1);
+  var T = truncate(top >> e_sat, cap_mantissa_width + 1);
+  /* Work out whether we have lost significant bits in top */
+  var maskLo : CapLenBits = EXTZ(ones(e_sat));
+  lostSignificantTop  = unsigned(top & maskLo) != 0;
+  if lostSignificantTop then {
+    /* we must increment T to make sure it is still above top even with lost bits */
+    T = T + 1;
   };
-  let newCap = {cap with address=base, E=to_bits(6, if incE then e + 1 else e), B=Bbits, T=Tbits, internal_E=ie};
+
+  /* If the resulting length is greater than maximum possible, we must
+     increment e by one and try again. This time overflow is impossible. */
+  if  0b0111111111 <_u (T - B) then {
+    if e_sat < 14 then {
+      /* increment e_sat by one, note that min is only necessary to satisfy the
+         Sail type checker */
+      e_sat = min(e_sat + 1, cap_max_E);
+    } else {
+      e_sat = cap_max_E;
+    };
+    /* Recompute B, T, mask etc for new e_sat */
+    B = truncate(base >> e_sat, cap_mantissa_width + 1);
+    T = truncate(top >> e_sat, cap_mantissa_width + 1);
+    maskLo = EXTZ(ones(e_sat));
+    lostSignificantTop  = unsigned(top & maskLo) != 0;
+    if lostSignificantTop then  {
+      T = T + 1;
+    };
+  };
+  /* Return cap with new bounds */
+  let encE = to_bits(cap_E_width, e_sat);
+  let newCap = {cap with address=base, E=encE, B=truncate(B, cap_mantissa_width), T=truncate(T, cap_mantissa_width)};
+  lostSignificantBase = unsigned(ext_base & maskLo) != 0;
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
 }
 
-function getCapPerms(cap) : Capability -> CapPermsBits =
-    let perms : bits(cap_uperms_shift) = EXTZ(getCapHardPerms(cap)) in
-    cap.uperms @ perms
+function getCapPerms(cap) : Capability -> CapPermsBits = [
+  bool_to_bit(cap.perm_user0),
+  bool_to_bit(cap.permit_seal),
+  bool_to_bit(cap.permit_unseal),
+  bool_to_bit(cap.permit_execute),
+  bool_to_bit(cap.access_system_regs),
+  bool_to_bit(cap.permit_load_store_cap),
+  bool_to_bit(cap.permit_load),
+  bool_to_bit(cap.permit_store_local_cap),
+  bool_to_bit(cap.permit_load_mutable),
+  bool_to_bit(cap.permit_store),
+  bool_to_bit(cap.permit_load_global),
+  bool_to_bit(cap.global)
+]
 
-function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
-    { cap with
-      uperms                 = truncate(perms >> cap_uperms_shift, cap_uperms_width),
-      /* 14..12 reserved -- ignore */
-      permit_set_CID         = bit_to_bool(perms[11]),
-      access_system_regs     = bit_to_bool(perms[10]),
-      permit_unseal          = bit_to_bool(perms[9]),
-      permit_cinvoke         = bit_to_bool(perms[8]),
-      permit_seal            = bit_to_bool(perms[7]),
-      permit_store_local_cap = bit_to_bool(perms[6]),
-      permit_store_cap       = bit_to_bool(perms[5]),
-      permit_load_cap        = bit_to_bool(perms[4]),
-      permit_store           = bit_to_bool(perms[3]),
-      permit_load            = bit_to_bool(perms[2]),
-      permit_execute         = bit_to_bool(perms[1]),
-      global                 = bit_to_bool(perms[0])
-      }
+ function setCapPerms(cap, perms) : (Capability, CapPermsBits) -> Capability =
+  { cap with
+    perm_user0             = bit_to_bool(perms[11]),
+    permit_seal            = bit_to_bool(perms[10]),
+    permit_unseal          = bit_to_bool(perms[9]),
+    permit_execute         = bit_to_bool(perms[8]),
+    access_system_regs     = bit_to_bool(perms[7]),
+    permit_load_store_cap  = bit_to_bool(perms[6]),
+    permit_load            = bit_to_bool(perms[5]),
+    permit_store_local_cap = bit_to_bool(perms[4]),
+    permit_load_mutable    = bit_to_bool(perms[3]),
+    permit_store           = bit_to_bool(perms[2]),
+    permit_load_global     = bit_to_bool(perms[1]),
+    global                 = bit_to_bool(perms[0])
+  }
 
 /*!
- * Gets the architecture specific capability flags for given capability.
+ * Returns whether the given capability is sealed i.e. whether its otype is zero.
  */
-val getCapFlags : Capability -> CapFlagsBits
-function getCapFlags(cap) = bool_to_bits(cap.flag_cap_mode)
-
-/*!
- * THIS`(cap, flags)` sets the architecture specific capability flags on `cap`
- * to `flags` and returns the result as new capability.
- */
-val setCapFlags : (Capability, CapFlagsBits) -> Capability
-function setCapFlags(cap, flags) = {cap with flag_cap_mode = bit_to_bool(flags[0])}
-
 val isCapSealed : Capability -> bool
 function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 
 /*!
- * Tests whether the capability has a reserved otype (larger than [cap_max_otype]).
- * Note that this includes both sealed (e.g. sentry) and unsealed (all ones)
- * otypes.
+ * Returns true if the given capability has one of the sentry otypes, otherwise false.
  */
-val hasReservedOType : Capability -> bool
-function hasReservedOType(cap) = unsigned(cap.otype) > cap_max_otype
+val isCapSentry : Capability -> bool
+function isCapSentry(cap) =
+  match unsigned(cap.otype) {
+    otype_sentry => true,
+    otype_sentry_id => true,
+    otype_sentry_ie => true,
+    _  => false
+  }
 
 function sealCap(cap, otyp) : (Capability, bits(cap_otype_width)) -> Capability =
     {cap with otype=otyp}
@@ -454,6 +575,12 @@ function getCapLength(c) : Capability -> CapLen =
         (top - base) % pow2(cap_len_width)
     }
 
+/*!
+ * THIS(cap, addr, len) checks whether the capability cap includes the region
+ * specified by addr and len. Specifically it checks whether
+ * cap.base $\le$ addr AND addr + len $\le$ cap.top. Note that this definition
+ * returns true if len is zero and addr $=$ cap.top.
+ */
 val inCapBounds  : (Capability, CapAddrBits, CapLen) -> bool
 function inCapBounds (cap, addr, size) = {
   let (base, top) = getCapBounds(cap);
@@ -461,78 +588,111 @@ function inCapBounds (cap, addr, size) = {
   (a >= base) & ((a + size) <= top)
 }
 
-function getCapCursor(cap) : Capability -> CapAddrInt = unsigned(cap.address)
-
 function int_to_cap (offset) : CapAddrBits -> Capability =
     {null_cap with address = offset}
 
-function clearTagIf(cap, cond) : (Capability, bool) -> Capability =
+/*!
+ * Returns the given capability with the tag cleared if the second argument is
+ * true, otherwise returns it with the original tag value preserved.
+ */
+val clearTagIf : (Capability, bool) -> Capability
+function clearTagIf(cap, cond) =
     {cap with tag = cap.tag & not(cond)}
 
+/*!
+ * Returns the given capability with the tag cleared if the capability
+ * is sealed, otherwise returns it with the original tag value preserved.
+ */
+val clearTagIfSealed : Capability -> Capability
 function clearTagIfSealed(cap) : Capability -> Capability =
     clearTagIf(cap, isCapSealed(cap))
 
+/*!
+ * Returns the given capability with the tag set to false.
+ */
+val clearTag : Capability -> Capability
 function clearTag(cap) : Capability -> Capability =
-    {cap with tag = false}
+    clearTagIf(cap, true)
 
 function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
     let (base1, top1) = getCapBounds(c1) in
     let (base2, top2) = getCapBounds(c2) in
     (base1 == base2) & (top1 == top2)
 
+/*!
+ * Returns the given capability with the address set to the given value and a boolean
+ * indicating whether the new address is within representable range (decoded
+ * bounds remain the same).
+ */
 val setCapAddr : (Capability, CapAddrBits) -> (bool, Capability)
 function setCapAddr(c, addr) =
     let newCap = { c with address = addr } in
     let representable = capBoundsEqual(c, newCap) in
     (representable, newCap)
 
+/*!
+ * Returns the given capability with the address set to given value. If the new
+ * address is not in the representable range or the capability is sealed then
+ * the tag is cleared.
+ */
+val setCapAddrChecked : (Capability, CapAddrBits) -> Capability
+function setCapAddrChecked (cap, addr) =
+    let (representable, newCap) = setCapAddr(cap, addr) in
+    clearTagIf(newCap, not(representable) | isCapSealed(cap))
+
 infix 1 >>_s
 overload operator >> = {sail_shiftright}
 overload operator << = {sail_shiftleft}
 overload operator >>_s = {sail_arith_shiftright}
 
-function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
-    let E = unsigned(c.E) in
-    if (E >= cap_max_E - 2) then
-        true /* in this case representable region is whole address space */
-    else
-        let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
-        let i_mid    = truncate(i >> E, cap_mantissa_width)in
-        let a_mid    = truncate(c.address >> E, cap_mantissa_width) in
-        let B3 = truncateLSB(c.B, 3) in
-        let R3 = B3 - 0b001 in
-        let R  = R3 @ zeros(cap_mantissa_width - 3) in
-        let diff  = R - a_mid in
-        let diff1 = diff - 1 in
-        /* i_top determines 1. whether the increment is inRange
-           i.e. less than the size of the representable region
-           (2**(E+MW)) and 2. whether it is positive or negative. To
-           satisfy 1. all top bits must be the same so we are
-           interested in the cases i_top is 0 or -1 */
-        if (i_top == 0) then
-          i_mid <_u diff1
-        else if (i_top == -1) then
-          (i_mid >=_u diff) & (R != a_mid)
-        else
-          false
+// function fastRepCheck(c, i) : (Capability, CapAddrBits) -> bool=
+//     let E = unsigned(c.E) in
+//     if (E >= cap_max_E - 2) then
+//         true /* in this case representable region is whole address space */
+//     else
+//         let i_top    = signed(i >>_s (E + cap_mantissa_width)) in
+//         let i_mid    = truncate(i >> E, cap_mantissa_width)in
+//         let a_mid    = truncate(c.address >> E, cap_mantissa_width) in
+//         let B3 = truncateLSB(c.B, 3) in
+//         let R3 = B3 - 0b001 in
+//         let R  = R3 @ zeros(cap_mantissa_width - 3) in
+//         let diff  = R - a_mid in
+//         let diff1 = diff - 1 in
+//         /* i_top determines 1. whether the increment is inRange
+//            i.e. less than the size of the representable region
+//            (2**(E+MW)) and 2. whether it is positive or negative. To
+//            satisfy 1. all top bits must be the same so we are
+//            interested in the cases i_top is 0 or -1 */
+//         if (i_top == 0) then
+//           i_mid <_u diff1
+//         else if (i_top == -1) then
+//           (i_mid >=_u diff) & (R != a_mid)
+//         else
+//           false
 
 function setCapOffset(c, offset) : (Capability, CapAddrBits) -> (bool, Capability) =
     let base = getCapBaseBits(c) in
     let newAddress = base + offset in
     let newCap     = { c with address = newAddress } in
-    /* let representable = capBoundsEqual(c, newCap) in */
-    let representable = fastRepCheck(c, (newAddress - c.address)) in
+    let representable = capBoundsEqual(c, newCap) in
+    /* let representable = fastRepCheck(c, (newAddress - c.address)) in */
     (representable, newCap)
 
 function setCapOffsetChecked (cap, offset) : (Capability, CapAddrBits) -> Capability =
     let (representable, newCap) = setCapOffset(cap, offset) in
     clearTagIf(newCap, not(representable) | isCapSealed(cap))
 
-function incCapOffset(c, delta) : (Capability, CapAddrBits) -> (bool, Capability) =
+/*!
+ * Returns the given capability with the address incremented by the given value 
+ * and a boolean indicating whether the new address is within representable 
+ * range (decoded bounds remain the same).
+ */
+val incCapAddr : (Capability, CapAddrBits) -> (bool, Capability)
+function incCapAddr(c, delta) =
     let newAddress : CapAddrBits = c.address + delta in
     let newCap     = { c with address = newAddress } in
-    /* let representable = capBoundsEqual(c, newCap) in */
-    let representable = fastRepCheck(c, delta) in
+    let representable = capBoundsEqual(c, newCap) in
+    /* let representable = fastRepCheck(c, delta) in */
     (representable, newCap)
 
 
@@ -540,8 +700,7 @@ val capToString : (Capability) -> string effect {escape}
 function capToString (cap) = {
   let len = getCapLength(cap);
   let len_str = BitStr(to_bits(cap_len_width + 3, len));
-  /* Print architectural type which is -1 for unsealed caps */
-  let otype64 : CapAddrBits = if hasReservedOType(cap) then EXTS(cap.otype) else EXTZ(cap.otype);
+  let otype64 : CapAddrBits = EXTZ(cap.otype);
   concat_str(" t:",
   concat_str(if cap.tag then "1" else "0",
   concat_str(" s:",
@@ -556,14 +715,36 @@ function capToString (cap) = {
   concat_str(BitStr(getCapBaseBits(cap)),
   concat_str(" length:", len_str)))))))))))))
 }
-function getRepresentableAlignmentMask(len) : xlenbits -> xlenbits = {
-  let (exact, c) = setCapBounds(default_cap, to_bits(sizeof(xlen), 0), 0b0 @ len);
-  let e = min(unsigned(c.E), cap_max_E);
-  let e' = if c.internal_E then e + internal_E_take_bits else 0;
-  ones(sizeof(xlen)-e') @ zeros(e')
+
+/*!
+ * For a given length computes the exponent, $e$, that would be used to represent
+ * a capability of that length and returns a mask consisting of $e$ zeros in the
+ * least significant bits and ones in the upper bits.
+ */
+val getRepresentableAlignmentMask: xlenbits -> xlenbits
+/*!
+ * The representable alignment mask for a given length depends on the exponent
+ * that would be used to represent a region of that length, assuming the base
+ * is sufficiently aligned. To compute this we resuse the implementation of
+ * [setCapBounds]
+ */
+function getRepresentableAlignmentMask(len) = {
+  let (exact, c) = setCapBounds(root_cap_mem, to_bits(sizeof(xlen), 0), len);
+  var e = unsigned(c.E);
+  ones(sizeof(xlen)) << e
 }
 
-function getRepresentableLength(len) : xlenbits -> xlenbits = {
+/*!
+ * For a given length, $l$, returns a value greater than or equal to $l$ that
+ * will result in a precisely representable capability when used with a
+ * base that is suitably aligned as per [getRepresentableAlignmentMask].
+ */
+val getRepresentableLength : xlenbits -> xlenbits
+/*!
+ * Given the required alignment mask returned by [getRepresentableAlignmentMask]
+ * we can round up the length by bit twiddling.
+ */
+function getRepresentableLength(len) = {
   let m = getRepresentableAlignmentMask(len);
   (len + ~(m)) & m
 }

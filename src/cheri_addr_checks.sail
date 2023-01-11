@@ -62,10 +62,18 @@
 
 /* Error handlers for address check errors */
 
-val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit effect {escape, rreg, wreg}
+/*!
+ * Causes the processor to raise a capability exception by writing the given
+ * capability exception cause and a 6-bit register number to the xtval register
+ * then signalling an exception. If bit 5 of the register number is set then
+ * bits 0-4 refer to the index of a special capability register, otherwise
+ * they refer to a general purpose register.
+ */
+val handle_cheri_cap_exception : (CapEx, capreg_idx) -> unit
 function handle_cheri_cap_exception(capEx, regnum) =
   {
-    print("CHERI " ^ string_of_capex(capEx) ^ " Reg=" ^ BitStr(regnum));
+    if get_config_print_instr() | get_config_print_exception()
+    then print_string("CHERI ", string_of_capex(capEx) ^ " Reg=" ^ string_of_capreg_idx(regnum) ^ " PC=" ^ BitStr(PC));
     let t : sync_exception = struct {
       trap    = E_Extension(EXC_CHERI),
       excinfo = Some(EXTZ(regnum @ CapExCode(capEx)) : xlenbits),
@@ -77,33 +85,33 @@ function handle_cheri_cap_exception(capEx, regnum) =
 /*!
  * Causes the processor to raise a capability exception by writing the given
  * capability exception cause and register number to the xtval register then
- * signalling an exception.
+ * signalling an exception. The register number refers to a general purpose
+ * register, so will be prepended with a zero bit.
  */
-val handle_cheri_reg_exception : (CapEx, regidx) -> unit effect {escape, rreg, wreg}
+val handle_cheri_reg_exception : (CapEx, regidx) -> unit
 function handle_cheri_reg_exception(capEx, regnum) =
   let reg6 = 0b0 @ regnum in
   handle_cheri_cap_exception(capEx, reg6)
 
 /*!
- * Is as [handle_cheri_cap_exception] except that the capability register
- * number uses the special value 0x10 indicating the PCC register.
+ * Is as [handle_cheri_reg_exception] except that the capability register
+ * number uses the special value 0x20 indicating the PCC register.
  */
-val handle_cheri_pcc_exception : (CapEx) -> unit effect {escape, rreg, wreg}
+val handle_cheri_pcc_exception : (CapEx) -> unit
 function handle_cheri_pcc_exception(capEx) =
   handle_cheri_cap_exception(capEx, 0b100000)
 
-val pcc_access_system_regs : unit -> bool effect {rreg}
+val pcc_access_system_regs : unit -> bool
 function pcc_access_system_regs () = PCC.access_system_regs
 
 /* CHERI fetch address checks */
 
 type ext_fetch_addr_error = CapEx
 
-val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_addr_error) effect {rreg}
+val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_addr_error)
 function ext_fetch_check_pc(start_pc, pc) = {
   if   start_pc == pc
   then {
-    pcc_base = getCapBaseBits(PCC);
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
     then    Ext_FetchAddr_Error(CapEx_TagViolation)
@@ -112,16 +120,12 @@ function ext_fetch_check_pc(start_pc, pc) = {
     else if not(PCC.permit_execute)
     then    Ext_FetchAddr_Error(CapEx_PermitExecuteViolation)
     else if not(inCapBounds(PCC, pc, 2))
-    then    Ext_FetchAddr_Error(CapEx_LengthViolation)
-    /* Require that PCC.base be as aligned as PC. This
-       is also enforced when setting PCC in most places. */
-    else if pcc_base[0] != bitzero | (pcc_base[1] != bitzero & ~(haveRVC()))
-    then    Ext_FetchAddr_Error(CapEx_UnalignedBase)
+    then    Ext_FetchAddr_Error(CapEx_BoundsViolation)
     else    Ext_FetchAddr_OK(pc)
   } else {
     /* Perform only the bounds checks on the current granule, i.e. pc. */
     if      not(inCapBounds(PCC, pc, 2))
-    then    Ext_FetchAddr_Error(CapEx_LengthViolation)
+    then    Ext_FetchAddr_Error(CapEx_BoundsViolation)
     else    Ext_FetchAddr_OK(pc)
   }
 }
@@ -135,21 +139,20 @@ type ext_control_addr_error = (CapEx, capreg_idx)
 
 /* the control address is derived from a non-PC register, e.g. in JALR */
 function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
-  let pcc_base = getCapBaseBits(PCC);
   /* We are given the addr without any bit[0] clearing, so the addition
    * below may include a set addr[0], and so the bounds checks should
    * be accurate.
    */
-  let target : xlenbits = [pcc_base + pc with 0=bitzero];
+  let target : xlenbits = [pc with 0=bitzero];
   if   not(inCapBounds(PCC, target, min_instruction_bytes ()))
-  then Ext_ControlAddr_Error(CapEx_LengthViolation, PCC_IDX)
+  then Ext_ControlAddr_Error(CapEx_BoundsViolation, PCC_IDX)
   else Ext_ControlAddr_OK(target)
 }
 
 /* the control address is derived from the PC register, e.g. in JAL */
 function ext_control_check_pc(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
   if   not(inCapBounds(PCC, pc, min_instruction_bytes ()))
-  then Ext_ControlAddr_Error(CapEx_LengthViolation, PCC_IDX)
+  then Ext_ControlAddr_Error(CapEx_BoundsViolation, PCC_IDX)
   else Ext_ControlAddr_OK(pc)
 }
 
@@ -162,26 +165,12 @@ function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = 
 
 type ext_data_addr_error = (CapEx, capreg_idx)
 
-
-/*!
- * For given base register and offset returns, depending on current capability
- * mode flag, a bounding capability, effective address, and capreg_idx (for use
- * in cap cause).
- */
-val get_cheri_mode_cap_addr : (regidx, xlenbits) -> (Capability, xlenbits, capreg_idx) effect {rreg, escape}
-function get_cheri_mode_cap_addr (base_reg : regidx, offset : xlenbits) = {
-  if (PCC.flag_cap_mode) then
-    let base_cap = C(base_reg) in
-    (base_cap, base_cap.address + offset, 0b0 @ base_reg)
-  else
-    let ddc = DDC in
-    (ddc, ddc.address + X(base_reg) + offset, DDC_IDX);
-}
-
 function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
-  let (auth_val, newAddr, auth_idx) = get_cheri_mode_cap_addr(base_reg, offset);
+  let auth_val = C(base_reg);
+  let newAddr = auth_val.address + offset;
+  let auth_idx = 0b0 @ base_reg;
 
   let (have_rqd_load_perm, have_rqd_store_perm) : (bool, bool) = match acc {
     Read(Data)            => (auth_val.permit_load, true                 ),
@@ -202,7 +191,7 @@ function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessTyp
   else if not(have_rqd_store_perm) then
     Ext_DataAddr_Error(CapEx_PermitStoreViolation, auth_idx)
   else if not(inCapBounds(auth_val, newAddr, word_width_bytes(width))) then
-    Ext_DataAddr_Error(CapEx_LengthViolation, auth_idx)
+    Ext_DataAddr_Error(CapEx_BoundsViolation, auth_idx)
   else
     Ext_DataAddr_OK(newAddr)
 }
@@ -227,9 +216,23 @@ function ext_check_xret_priv (p : Privilege) : Privilege -> bool =
 function ext_fail_xret_priv () : unit -> unit = 
   handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation)
 
-function ext_check_CSR (csrno : bits(12), p : Privilege, isWrite : bool) -> bool =
-  pcc_access_system_regs() /* XXX need to make this more granular e.g. a whitelist of allowed CSR
-  accesses */
+function ext_check_CSR (csrno : bits(12), p : Privilege, isWrite : bool) -> bool = 
+  if not(pcc_access_system_regs()) then match (csrno) {
+    /* CSR allow list in absence of access system registers */
+    0xB00 => not(isWrite), // mcycle
+    0xB02 => not(isWrite), // minstret
+    0xB80 => not(isWrite), // mcycleh
+    0xB82 => not(isWrite), // minstreth
+    0xC00 => not(isWrite), // cycle
+    0xC01 => not(isWrite), // time
+    0xC02 => not(isWrite), // instret
+    0xC80 => not(isWrite), // cycleh
+    0xC81 => not(isWrite), // timeh
+    0xC82 => not(isWrite), // instreth
+    _     => false
+  } else {
+    true
+  }
 
 function ext_check_CSR_fail () -> unit =
   handle_cheri_pcc_exception(CapEx_AccessSystemRegsViolation)

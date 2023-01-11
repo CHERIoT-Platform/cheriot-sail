@@ -72,35 +72,21 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -
   match p {
     Machine => {
       let (representable, mepcc) = setCapAddr(PCC, pc);
+      /* I think TCC could cause violation of this (see below) */
       assert(representable, "mepcc should always be representable");
       MEPCC   = mepcc
     },
-    Supervisor => {
-      let (representable, sepcc) = setCapAddr(PCC, pc);
-      assert(representable, "sepcc should always be representable");
-      SEPCC   = sepcc
-    },
-    User => {
-      let (representable, uepcc) = setCapAddr(PCC, pc);
-      assert(representable, "uepcc should always be representable");
-      UEPCC   = uepcc
-    }
+    _ => internal_error("unsupported")
   }
 }
 
 /* used for traps and ECALL */
 function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
-  let tcc : Capability = match p {
-                           Machine    => MTCC,
-                           Supervisor => STCC,
-                           User       => UTCC
-                         };
+  if p != Machine then internal_error("unsupported");
+  let tcc : Capability = MTCC;
 
-  /* NB we use address, not offset here because even though tvec is the offset
-     we want the absolute address to insert in PC. The bottom two bits (mode) should 
-     be the same because we enforce aligned tcc base. */
   match tvec_addr(Mk_Mtvec(tcc.address), c) { 
-    Some(addr) => { nextPCC = tcc; addr },
+    Some(addr) => { nextPCC = tcc; addr }, /* XXX addr could be unrepresentable or sealing violation! */
     None()     => internal_error("Invalid tvec mode")
   }
 }
@@ -114,14 +100,11 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
  * the update does not change the offset.  (However, it would be very unusual
  * for software to ever bring the core into such a state except in testing.)
  */
-val get_xret_target : Privilege -> xlenbits effect {rreg}
+val get_xret_target : Privilege -> xlenbits effect {escape, rreg}
 function get_xret_target(p) = {
-  let cap : Capability = match p {
-    Machine    => MEPCC,
-    Supervisor => SEPCC,
-    User       => UEPCC
-  };
-  legalize_xepc(getCapOffsetBits(cap))
+  if p != Machine then internal_error("unsupported");
+  let cap : Capability = MEPCC;
+  legalize_xepc(cap.address)
 }
 
 /*
@@ -131,25 +114,18 @@ function get_xret_target(p) = {
  *
  * Legalization is deferred until read.
  */
-val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {rreg, wreg}
+val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {escape}
 function set_xret_target(p, value) = {
-  match p {
-    Machine    => MEPCC = setCapOffsetChecked(MEPCC, value),
-    Supervisor => SEPCC = setCapOffsetChecked(SEPCC, value),
-    User       => UEPCC = setCapOffsetChecked(UEPCC, value)
-  };
-  value
+  internal_error("unsupported");
 }
 
-val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg}
+val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg, escape}
 function prepare_xret_target(p) = {
+  if p != Machine then internal_error("unsupported");
+
   /* Similar to prepare_trap_vector above we need to return the absolute address
      destined for PC, rather than the offset (architecutral PC) */
-  let epcc : Capability = match p {
-                            Machine    => MEPCC,
-                            Supervisor => SEPCC,
-                            User       => UEPCC
-                          };
+  let epcc : Capability = MEPCC;
 
   let epcc = legalize_epcc(epcc);
 
@@ -168,28 +144,25 @@ function prepare_xret_target(p) = {
 /* other trap-related CSRs */
 
 function get_mtvec() -> xlenbits =
-  getCapOffsetBits(MTCC)
+  MTCC.address
 
 function get_stvec() -> xlenbits =
-  getCapOffsetBits(STCC)
+  zeros()
 
 function get_utvec() -> xlenbits =
-  getCapOffsetBits(UTCC)
+  zeros()
 
 function set_mtvec(value : xlenbits) -> xlenbits = {
-  let mtv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(MTCC)), value);
-  MTCC = setCapOffsetChecked(MTCC, mtv.bits());
-  mtv.bits()
+  internal_error("unsupported");
+  zeros()
 }
 
 function set_stvec(value : xlenbits) -> xlenbits = {
-  let stv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(STCC)), value);
-  STCC = setCapOffsetChecked(STCC, stv.bits());
-  stv.bits()
+  internal_error("unsupported");
+  zeros()
 }
 
 function set_utvec(value : xlenbits) -> xlenbits = {
-  let utv = legalize_tvec(Mk_Mtvec(getCapOffsetBits(UTCC)), value);
-  UTCC = setCapOffsetChecked(UTCC, utv.bits());
-  utv.bits()
+  internal_error("unsupported");
+  zeros()
 }

@@ -1,31 +1,59 @@
-# CHERI RISC-V Sail model
-This repository contains an implementation of the CHERI extensions
-for the RISCV architecture in [sail](http://github.com/rems-project/sail). It is designed to be used with the [sail-riscv](http://github.com/rems-project/sail-riscv)
-model, which is included as a submodule. To checkout / build (assuming you have installed sail):
+# CHERIoT Sail model
+
+This repository contains an implementation of the CHERIoT ISA in [Sail](http://github.com/rems-project/sail).
+It contains an executable description of the CHERIoT instruction set that can be used to build an instruction set emulator and also prove [properties](properties) of the ISA using Sail's SMT support.
+A full description of the ISA, including extracts from this repository, can be found in the [CHERIoT technical report](https://aka.ms/cheriot-tech-report).
+
+The code is dervied from [sail-cheri-riscv](http://github.com/CTSRD-CHERI/sail-cheri-riscv)
+and uses the [sail-riscv](http://github.com/rems-project/sail-riscv) model as a submodule.
+
+# Building
+
+The easiest way to use this emulator is to use the dev container for the [CHERIoT RTOS](http://github.com/microsoft/cheriot-rtos).
+
+Alternatively, if you wish to build from source you must first install dependencies, including Sail. For example, on Ubuntu 20.04 we have tested:
+
 ```
-git clone --recurse-submodules https://github.com/CTSRD-CHERI/sail-cheri-riscv
-cd sail-cheri-riscv
-```
-You can build either an ocaml or C emulator, or a special binary for use with [TestRIG](https://github.com/CTSRD-CHERI/TestRIG):
-```
-make ocaml_emulator/cheri_riscv_ocaml_sim_RV64
-make c_emulator/cheri_riscv_sim_RV64
-make c_emulator/cheri_riscv_rvfi_RV64
+sudo apt update
+sudo apt install opam z3 libgmp-dev
+opam init
+opam install sail
 ```
 
-The
-[sail-cheri-riscv-verif](https://github.com/CTSRD-CHERI/sail-cheri-riscv-verif/)
-repository contains a number of SMT-checked properties of the compressed
-capability helper functions.
+Then clone the repo and apply some local patches to the sail-riscv submodule (we're working to upstream these changes but aren't there yet):
 
-## Funding
+```
+git clone --recurse-submodules https://github.com/microsoft/cheriot-sail
+cd cheriot-sail
+make patch_sail_riscv
+```
 
-This software was developed by SRI International and the University of
-Cambridge Computer Laboratory (Department of Computer Science and
-Technology) under DARPA/AFRL contract FA8650-18-C-7809 ("CIFV"), and
-under DARPA contract HR0011-18-C-0016 ("ECATS") as part of the DARPA
-SSITH research programme.
+Finally build the C emulator:
 
-This software was developed within the Rigorous Engineering of
-Mainstream Systems (REMS) project, partly funded by EPSRC grant
-EP/K008528/1, at the Universities of Cambridge and Edinburgh.
+```
+make csim
+```
+
+This will produce an executable in `c_emulator/cheriot_sim` that can be used to run ELF files produced by the CHERIoT compiler.
+
+## Contributing
+
+This project welcomes contributions and suggestions.  Most contributions require you to agree to a
+Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
+the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
+
+When you submit a pull request, a CLA bot will automatically determine whether you need to provide
+a CLA and decorate the PR appropriately (e.g., status check, comment). Simply follow the instructions
+provided by the bot. You will only need to do this once across all repos using our CLA.
+
+This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
+For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
+contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
+
+## Trademarks
+
+This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
+trademarks or logos is subject to and must follow 
+[Microsoft's Trademark & Brand Guidelines](https://www.microsoft.com/en-us/legal/intellectualproperty/trademarks/usage/general).
+Use of Microsoft trademarks or logos in modified versions of this project must not cause confusion or imply Microsoft sponsorship.
+Any use of third-party trademarks or logos are subject to those third-party's policies.

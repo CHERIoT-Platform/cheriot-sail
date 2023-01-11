@@ -60,9 +60,11 @@
 /*  SUCH DAMAGE.                                                                         */
 /*=======================================================================================*/
 
-let reserved_otypes = 4
-let otype_unsealed = -1
-let otype_sentry   = -2 /* Sealed erstwhile or prospective PCC */
+let otype_unsealed  = 0
+let otype_sentry    = 1 /* Sealed erstwhile or prospective PCC */
+let otype_sentry_id = 2 /* sentry disabling interrupts */
+let otype_sentry_ie = 3 /* sentry enabling interrupts */
+
 
 enum CPtrCmpOp = {
   CEQ,
@@ -82,7 +84,7 @@ enum ClearRegSet = {
 
 enum CapEx = {
   CapEx_None,
-  CapEx_LengthViolation,
+  CapEx_BoundsViolation,
   CapEx_TagViolation,
   CapEx_SealViolation,
   CapEx_TypeViolation,
@@ -103,7 +105,7 @@ enum CapEx = {
 function CapExCode(ex) : CapEx -> bits(5) =
   match ex {
     CapEx_None                          => 0b00000,
-    CapEx_LengthViolation               => 0b00001,
+    CapEx_BoundsViolation               => 0b00001,
     CapEx_TagViolation                  => 0b00010,
     CapEx_SealViolation                 => 0b00011,
     CapEx_TypeViolation                 => 0b00100,
@@ -124,7 +126,7 @@ function CapExCode(ex) : CapEx -> bits(5) =
 function string_of_capex (ex) : CapEx -> string =
   match ex {
     CapEx_None                          => "None"                        ,
-    CapEx_LengthViolation               => "LengthViolation"             ,
+    CapEx_BoundsViolation               => "BoundsViolation"             ,
     CapEx_TagViolation                  => "TagViolation"                ,
     CapEx_SealViolation                 => "SealViolation"               ,
     CapEx_TypeViolation                 => "TypeViolation"               ,
@@ -145,5 +147,6 @@ function string_of_capex (ex) : CapEx -> string =
 type capreg_idx = bits(6)
 let PCC_IDX : capreg_idx = 0b100000
 let DDC_IDX : capreg_idx = 0b100001
+let CGP_IDX : bits(5) = 0b00011
 
 type screg = bits(5)
