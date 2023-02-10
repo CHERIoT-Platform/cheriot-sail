@@ -1,0 +1,33 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: [ubuntu-20.04]
+    steps:
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y opam zlib1g-dev pkg-config libgmp-dev z3  cvc4
+    - name: Init opam
+      run: opam init -y
+    - name: Install sail
+      run: opam install -y sail
+    - name: Check out repository code
+      uses: actions/checkout@HEAD
+      with:
+        submodules: true
+    - name: Build simulators
+      run: |
+        make patch_sail_riscv
+        eval $(opam env) && make csim
+        mkdir install
+        cp c_emulator/cheriot_sim install
+        cp LICENCE install/LICENCE-cheriot-sail
+        cp sail-riscv/LICENCE install/LICENCE-sail-riscv
+    - name: Upload artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: cheriot_sim
+        path: install/
