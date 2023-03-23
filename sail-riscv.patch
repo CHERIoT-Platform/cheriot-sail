@@ -276,7 +276,7 @@ index 6e6718b..29646e2 100644
  val EXTS : forall 'n 'm, 'm >= 'n. (implicit('m), bits('n)) -> bits('m)
  val EXTZ : forall 'n 'm, 'm >= 'n. (implicit('m), bits('n)) -> bits('m)
 diff --git a/model/riscv_platform.sail b/model/riscv_platform.sail
-index ea27f48..eb8946d 100644
+index ea27f48..9725665 100644
 --- a/model/riscv_platform.sail
 +++ b/model/riscv_platform.sail
 @@ -124,6 +124,10 @@ val plat_rom_size   = {ocaml: "Platform.rom_size", interpreter: "Platform.rom_si
@@ -309,7 +309,17 @@ index ea27f48..eb8946d 100644
  /* CLINT (Core Local Interruptor), based on Spike. */
  
  val plat_insns_per_tick = {ocaml: "Platform.insns_per_tick", interpreter: "Platform.insns_per_tick", c: "plat_insns_per_tick", lem: "plat_insns_per_tick"} : unit -> int
-@@ -452,20 +468,77 @@ function htif_tick() = {
+@@ -318,9 +334,6 @@ function clint_store(addr, width, data) = {
+ 
+ val tick_clock : unit -> unit effect {rreg, wreg}
+ function tick_clock() = {
+-  if   mcountinhibit.CY() == 0b0
+-  then mcycle = mcycle + 1;
+-
+   mtime  = mtime  + 1;
+   clint_dispatch()
+ }
+@@ -452,20 +465,77 @@ function htif_tick() = {
  /* Top-level MMIO dispatch */
  $ifndef RVFI_DII
  function within_mmio_readable forall 'n, 0 < 'n <= max_mem_access . (addr : xlenbits, width : atom('n)) -> bool =
@@ -390,7 +400,7 @@ index ea27f48..eb8946d 100644
    then clint_load(t, paddr, width)
    else if within_htif_readable(paddr, width) & (1 <= 'n)
    then htif_load(t, paddr, width)
-@@ -476,7 +549,9 @@ function mmio_read forall 'n, 0 < 'n <= max_mem_access . (t : AccessType(ext_acc
+@@ -476,7 +546,9 @@ function mmio_read forall 'n, 0 < 'n <= max_mem_access . (t : AccessType(ext_acc
    }
  
  function mmio_write forall 'n, 0 <'n <= max_mem_access . (paddr : xlenbits, width : atom('n), data: bits(8 * 'n)) -> MemoryOpResult(bool) =
@@ -452,10 +462,18 @@ index a65c6c5..d9ef101 100644
    };
    if (r != 0) then {
 diff --git a/model/riscv_step.sail b/model/riscv_step.sail
-index df53fae..d60bf8e 100644
+index 40c0c80..36ebcd5 100644
 --- a/model/riscv_step.sail
 +++ b/model/riscv_step.sail
-@@ -77,8 +77,8 @@ function step(step_no : int) -> bool = {
+@@ -73,12 +73,16 @@ function step(step_no : int) -> bool = {
+   /* for step extensions */
+   ext_pre_step_hook();
+ 
++  /* Update the cycle counter on every step */
++  if   mcountinhibit.CY() == 0b0
++  then mcycle = mcycle + 1;
++
+   minstret_written = false;     /* see note for minstret */
    let (retired, stepped) : (Retired, bool) =
      match dispatchInterrupt(cur_privilege) {
        Some(intr, priv) => {
