@@ -1,0 +1,37 @@
+From 487fe4de8060b5856d048904cc3d4ea3646f620e Mon Sep 17 00:00:00 2001
+From: Robert Norton <ronorton@microsoft.com>
+Date: Mon, 23 Jan 2023 15:04:55 +0000
+Subject: [PATCH 07/10] riscv_sim: disable tracing by default.
+
+The current default is excessively verbose, meaning most invocations
+require -V to disable verbose tracing, sometimes followed by options
+to selectively re-enable tracing.
+---
+ c_emulator/riscv_sim.c | 10 +++++-----
+ 1 file changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/c_emulator/riscv_sim.c b/c_emulator/riscv_sim.c
+index 648c4c9..8fde33f 100644
+--- a/c_emulator/riscv_sim.c
++++ b/c_emulator/riscv_sim.c
+@@ -71,12 +71,12 @@ uint64_t mem_sig_start = 0;
+ uint64_t mem_sig_end = 0;
+ int signature_granularity = 4;
+ 
+-bool config_print_instr = true;
+-bool config_print_reg = true;
+-bool config_print_mem_access = true;
+-bool config_print_platform = true;
++bool config_print_instr = false;
++bool config_print_reg = false;
++bool config_print_mem_access = false;
++bool config_print_platform = false;
+ bool config_print_rvfi = false;
+-bool config_print_exception = true;
++bool config_print_exception = false;
+ int config_use_boot_rom = 
+ #ifdef NO_BOOT_ROM
+ false
+-- 
+2.39.2
+

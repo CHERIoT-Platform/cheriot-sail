@@ -440,7 +440,7 @@ apply_header:
 	headache -c etc/headache_config -h LICENCE `ls handwritten_support/*.*`
 
 patch_sail_riscv:
-	cd sail-riscv && patch -p1 < ../sail-riscv.patch
+	cd sail-riscv && git am ../riscv_patches/*.patch
 
 export: clean
 	tar cvzf sail.tar.gz LICENCE README.md Makefile src properties $(addprefix sail-riscv/,LICENCE README.md model c_emulator/*.c c_emulator/*.h)

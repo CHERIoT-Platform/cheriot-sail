@@ -1,0 +1,46 @@
+From b9b12240f89ff232db64cd06a72fac56035719e0 Mon Sep 17 00:00:00 2001
+From: Robert Norton <ronorton@microsoft.com>
+Date: Thu, 23 Mar 2023 18:03:11 +0000
+Subject: [PATCH 10/10] Increment mcycle on every instruction.
+
+Previously mcycle was incremented in tick_clock which is called every
+insns_per_tick instructions (hardcoded as 100). Now mcycle is
+incremented every instruction but mtime (used for timer interrupt)
+every tick.
+---
+ model/riscv_platform.sail | 3 ---
+ model/riscv_step.sail     | 4 ++++
+ 2 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/model/riscv_platform.sail b/model/riscv_platform.sail
+index eb8946d..9725665 100644
+--- a/model/riscv_platform.sail
++++ b/model/riscv_platform.sail
+@@ -334,9 +334,6 @@ function clint_store(addr, width, data) = {
+ 
+ val tick_clock : unit -> unit effect {rreg, wreg}
+ function tick_clock() = {
+-  if   mcountinhibit.CY() == 0b0
+-  then mcycle = mcycle + 1;
+-
+   mtime  = mtime  + 1;
+   clint_dispatch()
+ }
+diff --git a/model/riscv_step.sail b/model/riscv_step.sail
+index 5ba0e72..36ebcd5 100644
+--- a/model/riscv_step.sail
++++ b/model/riscv_step.sail
+@@ -73,6 +73,10 @@ function step(step_no : int) -> bool = {
+   /* for step extensions */
+   ext_pre_step_hook();
+ 
++  /* Update the cycle counter on every step */
++  if   mcountinhibit.CY() == 0b0
++  then mcycle = mcycle + 1;
++
+   minstret_written = false;     /* see note for minstret */
+   let (retired, stepped) : (Retired, bool) =
+     match dispatchInterrupt(cur_privilege) {
+-- 
+2.39.2
+
