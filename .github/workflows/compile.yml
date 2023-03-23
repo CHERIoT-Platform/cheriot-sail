@@ -21,8 +21,8 @@ jobs:
     - name: Build simulators
       run: |
         # fake committer details to satisfy git am
-        git config user.name 'No One'
-        git config user.email 'noone@nowhere.com'
+        git config --global user.name "No One"
+        git config --global user.email "noone@nowhere.com"
         make patch_sail_riscv
         eval $(opam env) && make csim
         mkdir install
