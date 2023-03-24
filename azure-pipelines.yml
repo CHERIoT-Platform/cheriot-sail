@@ -29,6 +29,9 @@ jobs:
     displayName: 'Installing dependencies'
   - script: |
       eval $(opam config env)
+      # Fake git user name to placate git-am
+      git config --global user.name 'No One'
+      git config --global user.email 'noone@nowhere.com'
       make patch_sail_riscv
       make csim
     displayName: 'Build simulator'
