@@ -531,9 +531,9 @@ function isCapSealed(cap) = signed(cap.otype) != otype_unsealed
 val isCapSentry : Capability -> bool
 function isCapSentry(cap) =
   match unsigned(cap.otype) {
-    otype_sentry => true,
-    otype_sentry_id => true,
-    otype_sentry_ie => true,
+    otype if otype == otype_sentry    => true,
+    otype if otype == otype_sentry_id => true,
+    otype if otype == otype_sentry_ie => true,
     _  => false
   }
 
