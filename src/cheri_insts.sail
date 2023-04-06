@@ -676,9 +676,9 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
     if cs1_val.permit_execute then
       match (cs2_addr) {
         /* 0 is unsealed */
-        otype_sentry => true,
-        otype_sentry_id => true,
-        otype_sentry_ie => true,
+        1 => true, /* otype_sentry */
+        2 => true, /* otype_sentry_id */
+        3 => true, /* otype_sentry_ie */
         /* 4 and 5 are reserved */
         6 => true,
         7 => true,
