@@ -700,20 +700,26 @@ val capToString : (Capability) -> string effect {escape}
 function capToString (cap) = {
   let len = getCapLength(cap);
   let len_str = BitStr(to_bits(cap_len_width + 3, len));
-  let otype64 : CapAddrBits = EXTZ(cap.otype);
-  concat_str(" t:",
-  concat_str(if cap.tag then "1" else "0",
-  concat_str(" s:",
-  concat_str(if isCapSealed(cap) then "1" else "0",
-  concat_str(" perms:",
-  concat_str(BitStr(0b0 @ getCapPerms(cap)),
-  concat_str(" type:",
-  concat_str(BitStr(otype64),
-  concat_str(" offset:",
-  concat_str(BitStr(getCapOffsetBits(cap)),
-  concat_str(" base:",
-  concat_str(BitStr(getCapBaseBits(cap)),
-  concat_str(" length:", len_str)))))))))))))
+  let (base, top) = getCapBoundsBits(cap);
+  let top_str = BitStr(0b000 @ top);
+  BitStr(cap.address)
+    ^ " (v:" ^ (if cap.tag then "1 " else "0 ")
+    ^ BitStr(base) ^ "-" ^ top_str
+    ^ " l:" ^ len_str
+    ^ " o:" ^ BitStr(cap.otype)
+    ^ " p:"
+    ^ (if cap.global then "G " else "- ")
+    ^ (if cap.permit_load then "R" else "-")
+    ^ (if cap.permit_store then "W" else "-")
+    ^ (if cap.permit_load_store_cap then "c" else "-")
+    ^ (if cap.permit_load_mutable then "m" else "-")
+    ^ (if cap.permit_load_global then "g" else "-")
+    ^ (if cap.permit_store_local_cap then "l " else "- ")
+    ^ (if cap.permit_execute then "X" else "-")
+    ^ (if cap.access_system_regs then "a " else "- ")
+    ^ (if cap.permit_seal then "S" else "-")
+    ^ (if cap.permit_unseal then "U" else "-")
+    ^ (if cap.perm_user0 then "0)" else "-)")
 }
 
 /*!
