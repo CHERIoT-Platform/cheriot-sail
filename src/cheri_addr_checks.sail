@@ -205,8 +205,14 @@ function ext_handle_data_check_error(err : ext_data_addr_error) -> unit = {
 function ext_check_phys_mem_read (access_type, paddr, size, aquire, release, reserved, read_meta) =
   Ext_PhysAddr_OK()
 
-function ext_check_phys_mem_write(write_kind, paddr, size, data, metadata) =
+function ext_check_phys_mem_write(write_kind, paddr, size, data, metadata) = {
+  if ((paddr >=_u MSHWMB) & (paddr <_u MSHWM)) then {
+    if get_config_print_reg()
+    then print_reg("MSHWM <- " ^ BitStr(paddr));
+    MSHWM = paddr;
+  };
   Ext_PhysAddr_OK()
+}
 
 /* Is XRET from given mode permitted by extension? */
 function ext_check_xret_priv (p : Privilege) : Privilege -> bool =
