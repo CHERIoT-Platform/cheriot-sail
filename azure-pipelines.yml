@@ -38,7 +38,7 @@ jobs:
   - script: |
       mkdir install
       cp c_emulator/cheriot_sim install
-      cp LICENCE install/LICENCE-cheriot-sail.txt
+      cp LICENSE install/LICENCE-cheriot-sail.txt
       cp sail-riscv/LICENCE install/LICENCE-sail-riscv.txt
     displayName: 'Preparing directory for upload'
   - publish: install
