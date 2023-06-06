@@ -27,7 +27,7 @@ jobs:
         eval $(opam env) && make csim
         mkdir install
         cp c_emulator/cheriot_sim install
-        cp LICENCE install/LICENCE-cheriot-sail
+        cp LICENSE install/LICENCE-cheriot-sail
         cp sail-riscv/LICENCE install/LICENCE-sail-riscv
     - name: Upload artifact
       uses: actions/upload-artifact@v3
