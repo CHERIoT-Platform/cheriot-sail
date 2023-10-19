@@ -1,0 +1,72 @@
+
+\chapter{Sail listings for capability encoding}
+\label{chap:sailenc}
+
+This chapter contains Sail types and functions that implement the
+capability encoding scheme.
+
+\medskip
+\sailRISCVtype{EncCapability}
+
+\medskip
+\sailRISCVtype{Capability}
+
+\medskip
+\label{sailRISCVzencCapabilityToCapability}
+\sailRISCVfnencCapabilityToCapability
+
+\medskip
+\sailRISCVfncapToEncCap
+
+\medskip
+\sailRISCVfngetCapBoundsBits
+
+\medskip
+\sailRISCVfnsetCapBounds
+
+\medskip
+\sailRISCVfngetRepresentableAlignmentMask
+
+\medskip
+\sailRISCVfngetRepresentableLength
+
+\section{SMT validation of properties of the capability encoding}
+
+The Sail compiler can translate Sail code into a Satisfiability Modulo Theories
+(SMT) problem that can be given to a solver such as CVC4 or Z3 to check whether
+a given function returns true for all input values. We have used this to
+check important properties of the capability encoding as implemented in Sail.
+
+Some helper functions are used in the Sail properties:
+
+\medskip
+\sailRISCVfn{encodeDecode}
+
+\medskip
+\sailRISCVfn{capEncodable}
+
+The following functions have been checked to return true for all inputs.
+
+\medskip
+\sailRISCVfn{prop\_decEnc}
+
+\medskip
+\sailRISCVfn{prop\_andperms}
+
+\medskip
+\sailRISCVfn{prop\_setbounds}
+
+\medskip
+\sailRISCVfn{prop\_setbounds\_monotonic}
+
+\medskip
+\sailRISCVfn{prop\_setaddr}
+
+\medskip
+\sailRISCVfn{prop\_repbounds\_c}
+
+\medskip
+\sailRISCVfn{prop\_repbounds}
+
+\medskip
+\sailRISCVfn{prop\_crrl\_cram}
