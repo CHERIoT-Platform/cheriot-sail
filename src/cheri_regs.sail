@@ -128,7 +128,7 @@ function ext_init_regs () = {
   PCC = root_cap_exe;
   nextPCC = root_cap_exe;
 
-  MTCC = root_cap_mem;
+  MTCC = root_cap_exe;
   MTDC = root_cap_mem;
   MScratchC = root_cap_seal;
   MEPCC = root_cap_exe;
