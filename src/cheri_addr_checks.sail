@@ -76,7 +76,7 @@ function handle_cheri_cap_exception(capEx, regnum) =
     then print_string("CHERI ", string_of_capex(capEx) ^ " Reg=" ^ string_of_capreg_idx(regnum) ^ " PC=" ^ BitStr(PC));
     let t : sync_exception = struct {
       trap    = E_Extension(EXC_CHERI),
-      excinfo = Some(EXTZ(regnum @ CapExCode(capEx)) : xlenbits),
+      excinfo = Some(zero_extend(regnum @ CapExCode(capEx)) : xlenbits),
       ext     = None()
     };
     set_next_pc(exception_handler(cur_privilege, CTL_TRAP(t), PC))
