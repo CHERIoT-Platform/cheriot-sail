@@ -303,7 +303,7 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
   let otype = (if isExe | c.cotype == 0b000 then 0b0 else 0b1) @ c.cotype;
   /* The 4-bit exponent is expanded to 5 bits, using 0xf to encode a cap_max_E
     value that enables representing the entire address space. */
-  let E = if c.cE == 0xf then cap_max_E_bits else EXTZ(c.cE);
+  let E = if c.cE == 0xf then cap_max_E_bits else zero_extend(c.cE);
   return struct {
     tag                    = t,
     perm_user0             = perm_user0            ,
@@ -454,7 +454,7 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
   var B = truncate(base >> e_sat, cap_mantissa_width + 1);
   var T = truncate(top >> e_sat, cap_mantissa_width + 1);
   /* Work out whether we have lost significant bits in top */
-  var maskLo : CapLenBits = EXTZ(ones(e_sat));
+  var maskLo : CapLenBits = zero_extend(ones(e_sat));
   lostSignificantTop  = unsigned(top & maskLo) != 0;
   if lostSignificantTop then {
     /* we must increment T to make sure it is still above top even with lost bits */
@@ -474,7 +474,7 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
     /* Recompute B, T, mask etc for new e_sat */
     B = truncate(base >> e_sat, cap_mantissa_width + 1);
     T = truncate(top >> e_sat, cap_mantissa_width + 1);
-    maskLo = EXTZ(ones(e_sat));
+    maskLo = zero_extend(ones(e_sat));
     lostSignificantTop  = unsigned(top & maskLo) != 0;
     if lostSignificantTop then  {
       T = T + 1;

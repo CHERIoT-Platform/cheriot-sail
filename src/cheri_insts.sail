@@ -68,7 +68,7 @@ union clause ast = AUIPCC : (bits(20), regidx)
  * **address** replaced with **PCC**.**address** $+$ *imm* $\times$ 2048.
  */
 function clause execute AUIPCC(imm, cd) = {
-  let off : xlenbits = EXTS(imm) << 11;
+  let off : xlenbits = sign_extend(imm) << 11;
   let (representable, newCap) = setCapAddr(PCC, PC + off);
   C(cd) = clearTagIf(newCap, not(representable));
   RETIRE_SUCCESS
@@ -80,7 +80,7 @@ union clause ast = AUICGP : (bits(20), regidx)
  * **address** replaced with **CGP**.**address** $+$ *imm* $\times$ 2048.
  */
 function clause execute AUICGP(imm, cd) = {
-  let off : xlenbits = EXTS(imm) << 11;
+  let off : xlenbits = sign_extend(imm) << 11;
   let cgp_val = C(CGP_IDX); /* $c3 */
   let (representable, newCap) = incCapAddr(cgp_val, off);
   C(cd) = clearTagIf(newCap, isCapSealed(cgp_val) | not(representable));
@@ -100,7 +100,7 @@ union clause ast = CJAL : (bits(21), regidx)
  *   - **PCC**.**address** $+$ *imm* is unaligned, ignoring bit 0.
  */
 function clause execute(CJAL(imm, cd)) = {
-  let off : xlenbits = EXTS(imm);
+  let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
   if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
     handle_cheri_cap_exception(CapEx_BoundsViolation, PCC_IDX);
@@ -140,7 +140,7 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  */
 function clause execute(CJALR(imm, cs1, cd)) = {
   let cs1_val = C(cs1);
-  let off : xlenbits = EXTS(imm);
+  let off : xlenbits = sign_extend(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
@@ -191,7 +191,7 @@ union clause ast = CGetTop    : (regidx, regidx)
  */
 function clause execute (CGetPerm(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(getCapPerms(capVal));
+  X(rd) = zero_extend(getCapPerms(capVal));
   RETIRE_SUCCESS
 }
 
@@ -201,7 +201,7 @@ function clause execute (CGetPerm(rd, cs1)) = {
  */
 function clause execute (CGetType(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(capVal.otype);
+  X(rd) = zero_extend(capVal.otype);
   RETIRE_SUCCESS
 }
 
@@ -297,7 +297,7 @@ function clause execute (CGetLen(rd, cs1)) = {
  */
 function clause execute (CGetTag(rd, cs1)) = {
   let capVal = C(cs1);
-  X(rd) = EXTZ(bool_to_bits(capVal.tag));
+  X(rd) = zero_extend(bool_to_bits(capVal.tag));
   RETIRE_SUCCESS
 }
 
@@ -434,7 +434,7 @@ union clause ast = CIncAddrImmediate : (regidx, regidx, bits(12))
  */
 function clause execute (CIncAddrImmediate(cd, cs1, imm)) = {
   let cs1_val = C(cs1);
-  let immBits : xlenbits = EXTS(imm);
+  let immBits : xlenbits = sign_extend(imm);
 
   let inCap = clearTagIfSealed(cs1_val);
   let (success, newCap) = incCapAddr(inCap, immBits);
@@ -520,7 +520,7 @@ function clause execute (CSetBoundsImmediate(cd, cs1, uimm)) = {
   let cs1_val = C(cs1);
 
   let newBase = cs1_val.address;
-  let newLen : CapAddrBits = EXTZ(uimm);
+  let newLen : CapAddrBits = zero_extend(uimm);
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -641,7 +641,7 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
                else
                  0b1;
 
-  X(rd) = EXTZ(result);
+  X(rd) = zero_extend(result);
   RETIRE_SUCCESS
 }
 
@@ -654,7 +654,7 @@ union clause ast = CSEQX : (regidx, regidx, regidx)
 function clause execute (CSEQX(rd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
-  X(rd) = EXTZ(bool_to_bits(cs1_val == cs2_val));
+  X(rd) = zero_extend(bool_to_bits(cs1_val == cs2_val));
   RETIRE_SUCCESS
 }
 
@@ -746,7 +746,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  *     implementation supports unaligned data accesses.
  */
 function clause execute LoadCapImm(cd, cs1, imm) = {
-  let offset : xlenbits = EXTS(imm);
+  let offset : xlenbits = sign_extend(imm);
   let auth_val = C(cs1);
   let vaddrBits = auth_val.address + offset;
   if not(auth_val.tag) then {
@@ -819,7 +819,7 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  */
 function clause execute StoreCapImm(cs2, cs1, imm) = {
-  let offset : xlenbits = EXTS(imm);
+  let offset : xlenbits = sign_extend(imm);
   let auth_val = C(cs1);
   let vaddrBits = auth_val.address + offset;
   let cs2_val = C(cs2);
@@ -971,7 +971,7 @@ mapping clause encdec_compressed = C_CLCSP(ui86 @ ui5 @ ui43, rd)
       if rd != zreg
 
 function clause execute (C_CLCSP(uimm, rd)) = {
-  let imm : bits(12) = EXTZ(uimm @ 0b000);
+  let imm : bits(12) = zero_extend(uimm @ 0b000);
   execute(LoadCapImm(rd, sp, imm))
 }
 
@@ -989,7 +989,7 @@ mapping clause encdec_compressed = C_CSCSP(ui86 @ ui53, rs2)
   <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ rs2 : regidx @ 0b10
 
 function clause execute (C_CSCSP(uimm, rs2)) = {
-  let imm : bits(12) = EXTZ(uimm @ 0b000);
+  let imm : bits(12) = zero_extend(uimm @ 0b000);
   execute(StoreCapImm(rs2, sp, imm))
 }
 
@@ -1005,7 +1005,7 @@ mapping clause encdec_compressed = C_CLC(ui76 @ ui53, rs1, rd)
   <-> 0b011 @ ui53 : bits(3) @ rs1 : cregidx @ ui76 : bits(2) @ rd : cregidx @ 0b00
 
 function clause execute (C_CLC(uimm, rsc, rdc)) = {
-  let imm : bits(12) = EXTZ(uimm @ 0b000);
+  let imm : bits(12) = zero_extend(uimm @ 0b000);
   let rd = creg2reg_idx(rdc);
   let rs = creg2reg_idx(rsc);
   execute(LoadCapImm(rd, rs, imm))
@@ -1023,7 +1023,7 @@ mapping clause encdec_compressed = C_CSC(ui76 @ ui53, rs1, rs2)
   <-> 0b111 @ ui53 : bits(3) @ rs1 : bits(3) @ ui76 : bits(2) @ rs2 : bits(3) @ 0b00
 
 function clause execute (C_CSC(uimm, rsc1, rsc2)) = {
-  let imm : bits(12) = EXTZ(uimm @ 0b000);
+  let imm : bits(12) = zero_extend(uimm @ 0b000);
   let rs1 = creg2reg_idx(rsc1);
   let rs2 = creg2reg_idx(rsc2);
   execute(StoreCapImm(rs2, rs1, imm))
