@@ -765,7 +765,7 @@ function clause execute LoadCapImm(cd, cs1, imm) = {
     handle_mem_exception(vaddrBits, E_Load_Addr_Align());
     RETIRE_FAIL
   } else match translateAddr(vaddrBits, Read(Cap)) {
-    TR_Failure(E_Extension(_), _) => { internal_error("unexpected cheri exception for cap load") },
+    TR_Failure(E_Extension(_), _) => { internal_error(__FILE__, __LINE__,"unexpected cheri exception for cap load") },
     TR_Failure(e, _) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
     TR_Address(addr, ptw_info) => {
       let c = mem_read_cap(addr, false, false, false);
@@ -854,7 +854,7 @@ function clause execute StoreCapImm(cs2, cs1, imm) = {
           let res : MemoryOpResult(bool) = mem_write_cap(addr, cs2_val, false, false, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
-            MemValue(false) => internal_error("store got false from mem_write_value"),
+            MemValue(false) => internal_error(__FILE__, __LINE__,"store got false from mem_write_value"),
             MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL }
           }
         }
