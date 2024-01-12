@@ -76,18 +76,18 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -
       assert(representable, "mepcc should always be representable");
       MEPCC   = mepcc
     },
-    _ => internal_error("unsupported")
+    _ => internal_error(__FILE__, __LINE__,"unsupported")
   }
 }
 
 /* used for traps and ECALL */
 function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
-  if p != Machine then internal_error("unsupported");
+  if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
   let tcc : Capability = MTCC;
 
   match tvec_addr(Mk_Mtvec(tcc.address), c) { 
     Some(addr) => { nextPCC = tcc; addr }, /* XXX addr could be unrepresentable or sealing violation! */
-    None()     => internal_error("Invalid tvec mode")
+    None()     => internal_error(__FILE__, __LINE__,"Invalid tvec mode")
   }
 }
 
@@ -102,7 +102,7 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
  */
 val get_xret_target : Privilege -> xlenbits effect {escape, rreg}
 function get_xret_target(p) = {
-  if p != Machine then internal_error("unsupported");
+  if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
   let cap : Capability = MEPCC;
   legalize_xepc(cap.address)
 }
@@ -116,12 +116,12 @@ function get_xret_target(p) = {
  */
 val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {escape}
 function set_xret_target(p, value) = {
-  internal_error("unsupported");
+  internal_error(__FILE__, __LINE__,"unsupported");
 }
 
 val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg, escape}
 function prepare_xret_target(p) = {
-  if p != Machine then internal_error("unsupported");
+  if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
 
   /* Similar to prepare_trap_vector above we need to return the absolute address
      destined for PC, rather than the offset (architecutral PC) */
@@ -153,16 +153,16 @@ function get_utvec() -> xlenbits =
   zeros()
 
 function set_mtvec(value : xlenbits) -> xlenbits = {
-  internal_error("unsupported");
+  internal_error(__FILE__, __LINE__,"unsupported");
   zeros()
 }
 
 function set_stvec(value : xlenbits) -> xlenbits = {
-  internal_error("unsupported");
+  internal_error(__FILE__, __LINE__,"unsupported");
   zeros()
 }
 
 function set_utvec(value : xlenbits) -> xlenbits = {
-  internal_error("unsupported");
+  internal_error(__FILE__, __LINE__,"unsupported");
   zeros()
 }

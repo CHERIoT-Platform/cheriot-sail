@@ -82,7 +82,7 @@ function rC r = {
     13 => x13,
     14 => x14,
     15 => x15,
-    _  => internal_error("Invalid capability register")
+    _  => internal_error(__FILE__, __LINE__,"Invalid capability register")
   }
 }
 
@@ -108,7 +108,7 @@ function wC (r, v) = {
     13 => x13 = v,
     14 => x14 = v,
     15 => x15 = v,
-    _  => internal_error("Invalid capability register")
+    _  => internal_error(__FILE__, __LINE__,"Invalid capability register")
   };
   if (r != 0) then {
      rvfi_wX(r, v.address);
