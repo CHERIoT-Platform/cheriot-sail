@@ -60,7 +60,6 @@ SAIL_VM_SRCS += $(SAIL_$(ARCH)_VM_SRCS)
 
 # Non-instruction sources
 PRELUDE = $(SAIL_RISCV_MODEL_DIR)/prelude.sail \
-          $(SAIL_RISCV_MODEL_DIR)/prelude_mapping.sail \
           $(SAIL_XLEN) \
           $(SAIL_FLEN) \
           $(SAIL_VLEN) \
@@ -111,12 +110,14 @@ SAIL_ARCH_RVFI_SRCS = \
 
 SAIL_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_ext.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_decode_ext.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
 
 RVFI_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step_rvfi.sail \
+                 $(SAIL_RISCV_MODEL_DIR)/riscv_decode_ext.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch_rvfi.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
