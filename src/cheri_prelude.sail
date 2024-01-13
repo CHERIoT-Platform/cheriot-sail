@@ -68,15 +68,6 @@ val MEMw_tag = "write_tag_bool" : (bits(64) , bool) -> unit effect { wmvt }
 val MAX : forall 'n, 'n >= 0 . atom('n) -> atom(2 ^ 'n - 1) effect pure
 function MAX(n) = pow2(n) - 1
 
-val not = {coq:"negb", _:"not"} : bool -> bool
-
-/*!
- * THIS converts a boolean to a bit in the conventional way by mapping `true` to
- * `bitone` and `false` to `bitzero`.
- */
-val bool_to_bit : bool -> bit
-function bool_to_bit x = if x then bitone else bitzero
-
 /*!
  * align_down(n, bv) returns the given bit vector, bv,  aligned down to a power
  * of two by clearing the least significant n bits.
