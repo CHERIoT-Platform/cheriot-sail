@@ -1,7 +1,7 @@
-From 951cbc162ecdef31361e2dddf5bd84bd77ce9b44 Mon Sep 17 00:00:00 2001
+From 7fdf336470e32419126b205908b8ec1cc34234d3 Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Wed, 18 Jan 2023 11:03:36 +0000
-Subject: [PATCH 06/10] Add a new 'exception' trace option that prints only on
+Subject: [PATCH 6/9] Add a new 'exception' trace option that prints only on
  interrupts and exceptions.
 
 ---
@@ -23,10 +23,10 @@ index f8f3eb3..dcbb32d 100644
  extern bool config_print_platform;
 +extern bool config_print_exception;
 diff --git a/c_emulator/riscv_prelude.c b/c_emulator/riscv_prelude.c
-index 92f8415..ad5a831 100644
+index 143a152..f65c591 100644
 --- a/c_emulator/riscv_prelude.c
 +++ b/c_emulator/riscv_prelude.c
-@@ -50,3 +50,8 @@ bool get_config_print_platform(unit u)
+@@ -55,3 +55,8 @@ bool get_config_print_platform(unit u)
  {
    return (config_print_platform) ? true : false;
  }
@@ -53,10 +53,10 @@ index 9ac33aa..84a4090 100644
 +bool get_config_print_exception(unit u);
 \ No newline at end of file
 diff --git a/c_emulator/riscv_sim.c b/c_emulator/riscv_sim.c
-index 787714e..648c4c9 100644
+index 08aa211..b37103b 100644
 --- a/c_emulator/riscv_sim.c
 +++ b/c_emulator/riscv_sim.c
-@@ -76,6 +76,7 @@ bool config_print_reg = true;
+@@ -83,6 +83,7 @@ bool config_print_reg = true;
  bool config_print_mem_access = true;
  bool config_print_platform = true;
  bool config_print_rvfi = false;
@@ -64,7 +64,7 @@ index 787714e..648c4c9 100644
  int config_use_boot_rom = 
  #ifdef NO_BOOT_ROM
  false
-@@ -91,6 +92,7 @@ void set_config_print(char *var, bool val) {
+@@ -99,6 +100,7 @@ void set_config_print(char *var, bool val)
      config_print_reg = val;
      config_print_platform = val;
      config_print_rvfi = val;
@@ -72,23 +72,24 @@ index 787714e..648c4c9 100644
    } else if (strcmp("instr", var) == 0) {
      config_print_instr = val;
    } else if (strcmp("reg", var) == 0) {
-@@ -101,8 +103,10 @@ void set_config_print(char *var, bool val) {
+@@ -109,9 +111,11 @@ void set_config_print(char *var, bool val)
      config_print_rvfi = val;
    } else if (strcmp("platform", var) == 0) {
      config_print_platform = val;
 +  } else if (strcmp("exception", var) == 0) {
 +    config_print_exception = val;
    } else {
--    fprintf(stderr, "Unknown trace category: '%s' (should be instr|reg|mem|platform|all)\n", var);
-+    fprintf(stderr, "Unknown trace category: '%s' (should be instr|reg|mem|exception|platform|all)\n", var);
+     fprintf(stderr, "Unknown trace category: '%s' (should be %s)\n",
+-            "instr|reg|mem|platform|all", var);
++            "instr|reg|mem|exception|platform|all", var);
      exit(1);
    }
  }
 diff --git a/model/prelude.sail b/model/prelude.sail
-index 6e6718b..29646e2 100644
+index 3e05a96..52947aa 100644
 --- a/model/prelude.sail
 +++ b/model/prelude.sail
-@@ -175,6 +175,7 @@ val print_platform = {ocaml: "Platform.print_platform", interpreter: "print_endl
+@@ -164,6 +164,7 @@ val print_platform = {ocaml: "Platform.print_platform", interpreter: "print_endl
  val get_config_print_instr = {ocaml: "Platform.get_config_print_instr", c:"get_config_print_instr"} : unit -> bool
  val get_config_print_reg = {ocaml: "Platform.get_config_print_reg", c:"get_config_print_reg"} : unit -> bool
  val get_config_print_mem = {ocaml: "Platform.get_config_print_mem", c:"get_config_print_mem"} : unit -> bool
@@ -96,19 +97,19 @@ index 6e6718b..29646e2 100644
  
  val get_config_print_platform = {ocaml: "Platform.get_config_print_platform", c:"get_config_print_platform"} : unit -> bool
  // defaults for other backends
-@@ -182,6 +183,7 @@ function get_config_print_instr () = false
+@@ -171,6 +172,7 @@ function get_config_print_instr () = false
  function get_config_print_reg () = false
  function get_config_print_mem () = false
  function get_config_print_platform () = false
 +function get_config_print_exception () = false
  
- val EXTS : forall 'n 'm, 'm >= 'n. (implicit('m), bits('n)) -> bits('m)
- val EXTZ : forall 'n 'm, 'm >= 'n. (implicit('m), bits('n)) -> bits('m)
+ val sign_extend : forall 'n 'm, 'm >= 'n. (implicit('m), bits('n)) -> bits('m)
+ val zero_extend : forall 'n 'm, 'm >= 'n. (implicit('m), bits('n)) -> bits('m)
 diff --git a/model/riscv_step.sail b/model/riscv_step.sail
-index 40c0c80..5ba0e72 100644
+index 550f11a..146a168 100644
 --- a/model/riscv_step.sail
 +++ b/model/riscv_step.sail
-@@ -77,8 +77,8 @@ function step(step_no : int) -> bool = {
+@@ -88,8 +88,8 @@ function step(step_no : int) -> bool = {
    let (retired, stepped) : (Retired, bool) =
      match dispatchInterrupt(cur_privilege) {
        Some(intr, priv) => {

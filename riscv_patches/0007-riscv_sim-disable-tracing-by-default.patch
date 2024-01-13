@@ -1,7 +1,7 @@
-From 487fe4de8060b5856d048904cc3d4ea3646f620e Mon Sep 17 00:00:00 2001
+From 1607644330f02e9e79380a8255ed3f215d88ff97 Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Mon, 23 Jan 2023 15:04:55 +0000
-Subject: [PATCH 07/10] riscv_sim: disable tracing by default.
+Subject: [PATCH 7/9] riscv_sim: disable tracing by default.
 
 The current default is excessively verbose, meaning most invocations
 require -V to disable verbose tracing, sometimes followed by options
@@ -11,10 +11,10 @@ to selectively re-enable tracing.
  1 file changed, 5 insertions(+), 5 deletions(-)
 
 diff --git a/c_emulator/riscv_sim.c b/c_emulator/riscv_sim.c
-index 648c4c9..8fde33f 100644
+index b37103b..55d04ce 100644
 --- a/c_emulator/riscv_sim.c
 +++ b/c_emulator/riscv_sim.c
-@@ -71,12 +71,12 @@ uint64_t mem_sig_start = 0;
+@@ -78,12 +78,12 @@ uint64_t mem_sig_start = 0;
  uint64_t mem_sig_end = 0;
  int signature_granularity = 4;
  

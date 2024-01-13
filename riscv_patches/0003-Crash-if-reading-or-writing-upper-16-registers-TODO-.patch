@@ -1,18 +1,18 @@
-From 6970cd7d361b44f9ca52a5abd4a0e6c4ac550482 Mon Sep 17 00:00:00 2001
+From d2f3d2cefbe1257a6f7eb5d1aa82a8eccab066e8 Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Mon, 31 Oct 2022 14:49:45 +0000
-Subject: [PATCH 03/10] Crash if reading or writing upper 16 registers: TODO
- this should really be reserved instruction trap.
+Subject: [PATCH 3/9] Crash if reading or writing upper 16 registers: TODO this
+ should really be reserved instruction trap.
 
 ---
  model/riscv_regs.sail | 32 --------------------------------
  1 file changed, 32 deletions(-)
 
 diff --git a/model/riscv_regs.sail b/model/riscv_regs.sail
-index a65c6c5..d9ef101 100644
+index 15e7613..4ff7871 100644
 --- a/model/riscv_regs.sail
 +++ b/model/riscv_regs.sail
-@@ -128,22 +128,6 @@ function rX r = {
+@@ -130,22 +130,6 @@ function rX r = {
        13 => x13,
        14 => x14,
        15 => x15,
@@ -35,7 +35,7 @@ index a65c6c5..d9ef101 100644
        _  => {assert(false, "invalid register number"); zero_reg}
      };
    regval_from_reg(v)
-@@ -181,22 +165,6 @@ function wX (r, in_v) = {
+@@ -183,22 +167,6 @@ function wX (r, in_v) = {
      13 => x13 = v,
      14 => x14 = v,
      15 => x15 = v,

@@ -1,7 +1,7 @@
-From 41c00661efdc44da5f606941e833ba0395c51e5c Mon Sep 17 00:00:00 2001
+From a03f2b539f022bd64cdec1baba6bd0c8dba22846 Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Mon, 31 Oct 2022 14:46:27 +0000
-Subject: [PATCH 05/10] riscv_sim: Add command line arguments to enable or
+Subject: [PATCH 5/9] riscv_sim: Add command line arguments to enable or
  disable use of boot ROM.
 
 This adds command line arguments --boot-rom and --no-boot-rom to
@@ -13,14 +13,14 @@ the simulator just sets the initial PC to the entry point.  For
 backwards compatibility the default is to use the boot-rom unless
 NO_BOOT_ROM is defined during compilation.
 ---
- c_emulator/riscv_sim.c | 20 ++++++++++++++++++--
- 1 file changed, 18 insertions(+), 2 deletions(-)
+ c_emulator/riscv_sim.c | 17 +++++++++++++++--
+ 1 file changed, 15 insertions(+), 2 deletions(-)
 
 diff --git a/c_emulator/riscv_sim.c b/c_emulator/riscv_sim.c
-index 5ad83e9..787714e 100644
+index 13d1653..08aa211 100644
 --- a/c_emulator/riscv_sim.c
 +++ b/c_emulator/riscv_sim.c
-@@ -76,6 +76,13 @@ bool config_print_reg = true;
+@@ -83,6 +83,13 @@ bool config_print_reg = true;
  bool config_print_mem_access = true;
  bool config_print_platform = true;
  bool config_print_rvfi = false;
@@ -32,42 +32,42 @@ index 5ad83e9..787714e 100644
 +#endif
 +;
  
- void set_config_print(char *var, bool val) {
-   if (var == NULL || strcmp("all", var) == 0) {
-@@ -131,6 +138,8 @@ static struct option options[] = {
-   {"no-trace",                    optional_argument, 0, 'V'},
-   {"inst-limit",                  required_argument, 0, 'l'},
-   {"enable-zfinx",                no_argument,       0, 'x'},
-+  {"boot-rom",                    no_argument, &config_use_boot_rom, true},
-+  {"no-boot-rom",                 no_argument, &config_use_boot_rom, false},
+ void set_config_print(char *var, bool val)
+ {
+@@ -142,6 +149,8 @@ static struct option options[] = {
+     {"inst-limit",                  required_argument, 0, 'l'                     },
+     {"enable-zfinx",                no_argument,       0, 'x'                     },
+     {"enable-writable-fiom",        no_argument,       0, OPT_ENABLE_WRITABLE_FIOM},
++    {"boot-rom",                    no_argument, &config_use_boot_rom, true},
++    {"no-boot-rom",                 no_argument, &config_use_boot_rom, false},
  #ifdef SAILCOV
-   {"sailcov-file",                required_argument, 0, 'c'},
+     {"sailcov-file",                required_argument, 0, 'c'                     },
  #endif
-@@ -146,7 +155,10 @@ static void print_usage(const char *argv0, int ec)
+@@ -156,10 +165,10 @@ static void print_usage(const char *argv0, int ec)
  #endif
    struct option *opt = options;
    while (opt->name) {
--    fprintf(stdout, "\t -%c\t --%s\n", (char)opt->val, opt->name);
+-    if (isprint(opt->val))
 +    if (opt->flag == NULL)
-+      fprintf(stdout, "\t -%c\t --%s\n", (char)opt->val, opt->name);
-+    else
+       fprintf(stdout, "\t -%c\t --%s\n", (char)opt->val, opt->name);
+     else
+-      fprintf(stdout, "\t   \t --%s\n", opt->name);
 +      fprintf(stdout, "\t\t --%s\n", opt->name);
      opt++;
    }
    exit(ec);
-@@ -551,7 +563,11 @@ void init_sail(uint64_t elf_entry)
+@@ -601,7 +610,11 @@ void init_sail(uint64_t elf_entry)
      zPC = elf_entry;
    } else
  #endif
--  init_sail_reset_vector(elf_entry);
 +  if (config_use_boot_rom) {
-+    init_sail_reset_vector(elf_entry);
+     init_sail_reset_vector(elf_entry);
 +  } else {
 +    zPC = elf_entry;
 +  }
  
    // this is probably unnecessary now; remove
-   if (!rv_enable_rvc) z_set_Misa_C(&zmisa, 0);
+   if (!rv_enable_rvc)
 -- 
 2.39.2
 

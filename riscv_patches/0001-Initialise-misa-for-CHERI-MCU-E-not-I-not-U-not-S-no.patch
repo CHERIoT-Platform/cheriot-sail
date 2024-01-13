@@ -1,35 +1,35 @@
-From d5a0048e5274cb1ce81030cfccc68060ce1183a4 Mon Sep 17 00:00:00 2001
+From 47c0bc46ee6152b89addb9432945b140bfe7fe3d Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Mon, 31 Oct 2022 14:19:28 +0000
-Subject: [PATCH 01/10] Initialise misa for CHERI-MCU: E not I, not U, not S,
- not A.
+Subject: [PATCH 1/9] Initialise misa for CHERI-MCU: E not I, not U, not S, not
+ A.
 
 ---
  model/riscv_sys_control.sail | 9 +++++----
  1 file changed, 5 insertions(+), 4 deletions(-)
 
 diff --git a/model/riscv_sys_control.sail b/model/riscv_sys_control.sail
-index 6204ae5..9e684d9 100644
+index 3830725..914caec 100644
 --- a/model/riscv_sys_control.sail
 +++ b/model/riscv_sys_control.sail
-@@ -552,12 +552,13 @@ function init_sys() -> unit = {
-   mhartid     = EXTZ(0b0);
+@@ -556,12 +556,13 @@ function init_sys() -> unit = {
+   mhartid     = zero_extend(0b0);
  
    misa->MXL() = arch_to_bits(if sizeof(xlen) == 32 then RV32 else RV64);
--  misa->A()   = 0b1;                            /* atomics */
-+  // misa->A()   = 0b1;                            /* atomics */
-   misa->C()   = bool_to_bits(sys_enable_rvc()); /* RVC */
--  misa->I()   = 0b1;                            /* base integer ISA */
-+  // misa->I()   = 0b1;                            /* base integer ISA */
+-  misa->A()   = 0b1;                             /* atomics */
++  // misa->A()   = 0b1;                             /* atomics */
+   misa->C()   = bool_to_bits(sys_enable_rvc());  /* RVC */
+-  misa->I()   = 0b1;                             /* base integer ISA */
++  // misa->I()   = 0b1;                             /* base integer ISA */
 +  misa->E()   = 0b1;
-   misa->M()   = 0b1;                            /* integer multiply/divide */
--  misa->U()   = 0b1;                            /* user-mode */
--  misa->S()   = 0b1;                            /* supervisor-mode */
-+  misa->U()   = 0b0;                            /* user-mode */
-+  misa->S()   = 0b0;                            /* supervisor-mode */
+   misa->M()   = 0b1;                             /* integer multiply/divide */
+-  misa->U()   = 0b1;                             /* user-mode */
+-  misa->S()   = 0b1;                             /* supervisor-mode */
++  misa->U()   = 0b0;                             /* user-mode */
++  misa->S()   = 0b0;                             /* supervisor-mode */
+   misa->V()   = bool_to_bits(sys_enable_vext()); /* vector extension */
  
    if   sys_enable_fdext() & sys_enable_zfinx()
-   then internal_error("F and Zfinx cannot both be enabled!");
 -- 
 2.39.2
 

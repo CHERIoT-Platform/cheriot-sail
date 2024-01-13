@@ -1,8 +1,7 @@
-From 812e68c5745c8e220c3ba67374a6d889a6c9ec63 Mon Sep 17 00:00:00 2001
+From a64a1c55a35e95d8303156e52cca02d48a9e161e Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Mon, 31 Oct 2022 14:59:58 +0000
-Subject: [PATCH 04/10] Add very basic output-only MMIO UART for terminal
- output.
+Subject: [PATCH 4/9] Add very basic output-only MMIO UART for terminal output.
 
 Mapped at 0x10000100 to match flute, with address hardcoded in a
 similar way to CLINT. Should make this configurable.
@@ -15,12 +14,12 @@ similar way to CLINT. Should make this configurable.
  5 files changed, 95 insertions(+), 4 deletions(-)
 
 diff --git a/c_emulator/riscv_platform.c b/c_emulator/riscv_platform.c
-index 2572dbc..7a257fc 100644
+index fbd63fa..71600d2 100644
 --- a/c_emulator/riscv_platform.c
 +++ b/c_emulator/riscv_platform.c
-@@ -58,6 +58,13 @@ mach_bits plat_clint_base(unit u)
- mach_bits plat_clint_size(unit u)
- { return rv_clint_size; }
+@@ -108,6 +108,13 @@ mach_bits plat_clint_size(unit u)
+   return rv_clint_size;
+ }
  
 +mach_bits plat_uart_base(unit u)
 +{ return rv_uart_base; }
@@ -33,10 +32,10 @@ index 2572dbc..7a257fc 100644
  {
    reservation = addr;
 diff --git a/c_emulator/riscv_platform.h b/c_emulator/riscv_platform.h
-index 5335a90..a9b98bb 100644
+index 4b6541f..9a3f25a 100644
 --- a/c_emulator/riscv_platform.h
 +++ b/c_emulator/riscv_platform.h
-@@ -25,6 +25,9 @@ mach_bits plat_get_16_random_bits();
+@@ -27,6 +27,9 @@ mach_bits plat_get_16_random_bits();
  mach_bits plat_clint_base(unit);
  mach_bits plat_clint_size(unit);
  
@@ -47,10 +46,10 @@ index 5335a90..a9b98bb 100644
  unit load_reservation(mach_bits);
  bool match_reservation(mach_bits);
 diff --git a/c_emulator/riscv_platform_impl.c b/c_emulator/riscv_platform_impl.c
-index b1504a7..9aca0b7 100644
+index 15ff8ad..75f77e9 100644
 --- a/c_emulator/riscv_platform_impl.c
 +++ b/c_emulator/riscv_platform_impl.c
-@@ -37,6 +37,9 @@ uint64_t rv_16_random_bits(void) {
+@@ -40,6 +40,9 @@ uint64_t rv_16_random_bits(void)
  uint64_t rv_clint_base = UINT64_C(0x2000000);
  uint64_t rv_clint_size = UINT64_C(0xc0000);
  
@@ -61,10 +60,10 @@ index b1504a7..9aca0b7 100644
  uint64_t rv_insns_per_tick = UINT64_C(100);
  
 diff --git a/c_emulator/riscv_platform_impl.h b/c_emulator/riscv_platform_impl.h
-index 165fb94..34edd1e 100644
+index e5c562a..0a6329e 100644
 --- a/c_emulator/riscv_platform_impl.h
 +++ b/c_emulator/riscv_platform_impl.h
-@@ -29,6 +29,9 @@ extern uint64_t rv_16_random_bits(void);
+@@ -32,6 +32,9 @@ extern uint64_t rv_16_random_bits(void);
  extern uint64_t rv_clint_base;
  extern uint64_t rv_clint_size;
  
@@ -75,10 +74,10 @@ index 165fb94..34edd1e 100644
  extern uint64_t rv_insns_per_tick;
  
 diff --git a/model/riscv_platform.sail b/model/riscv_platform.sail
-index ea27f48..eb8946d 100644
+index 579a118..71960c2 100644
 --- a/model/riscv_platform.sail
 +++ b/model/riscv_platform.sail
-@@ -124,6 +124,10 @@ val plat_rom_size   = {ocaml: "Platform.rom_size", interpreter: "Platform.rom_si
+@@ -126,6 +126,10 @@ val plat_rom_size   = {ocaml: "Platform.rom_size", interpreter: "Platform.rom_si
  val plat_clint_base = {ocaml: "Platform.clint_base", interpreter: "Platform.clint_base", c: "plat_clint_base", lem: "plat_clint_base"} : unit -> xlenbits
  val plat_clint_size = {ocaml: "Platform.clint_size", interpreter: "Platform.clint_size", c: "plat_clint_size", lem: "plat_clint_size"} : unit -> xlenbits
  
@@ -89,7 +88,7 @@ index ea27f48..eb8946d 100644
  /* Location of HTIF ports */
  val plat_htif_tohost = {ocaml: "Platform.htif_tohost", c: "plat_htif_tohost", lem: "plat_htif_tohost"} : unit -> xlenbits
  function plat_htif_tohost () = to_bits(sizeof(xlen), elf_tohost ())
-@@ -183,6 +187,18 @@ function within_htif_writable forall 'n, 0 < 'n <= max_mem_access . (addr : xlen
+@@ -185,6 +189,18 @@ function within_htif_writable forall 'n, 0 < 'n <= max_mem_access . (addr : xlen
  function within_htif_readable forall 'n, 0 < 'n <= max_mem_access . (addr : xlenbits, width : atom('n)) -> bool =
      plat_htif_tohost() == addr | (plat_htif_tohost() + 4 == addr & width == 4)
  
@@ -108,7 +107,7 @@ index ea27f48..eb8946d 100644
  /* CLINT (Core Local Interruptor), based on Spike. */
  
  val plat_insns_per_tick = {ocaml: "Platform.insns_per_tick", interpreter: "Platform.insns_per_tick", c: "plat_insns_per_tick", lem: "plat_insns_per_tick"} : unit -> int
-@@ -452,20 +468,77 @@ function htif_tick() = {
+@@ -454,20 +470,77 @@ function htif_tick() = {
  /* Top-level MMIO dispatch */
  $ifndef RVFI_DII
  function within_mmio_readable forall 'n, 0 < 'n <= max_mem_access . (addr : xlenbits, width : atom('n)) -> bool =
@@ -143,7 +142,7 @@ index ea27f48..eb8946d 100644
 +function uart_load(t, addr, width) = {
 +  let offset = addr - plat_uart_base();
 +  /* We only support reading the status register, which always indicates ready to write output */
-+  if offset == UART_OFFSET_LINE_STATUS & ('n == 4)
++  if offset == zero_extend(UART_OFFSET_LINE_STATUS) & ('n == 4)
 +  then {
 +    let result = 0b100000; /* TXBufEmpty always */
 +    if   get_config_print_platform()
@@ -164,12 +163,12 @@ index ea27f48..eb8946d 100644
 +function uart_store(addr, width, data) = {
 +  let offset = addr - plat_uart_base();
 +  /* only support writing to the data register for output, ignore other writes */
-+  if offset == UART_OFFSET_DATA & ('n == 8 | 'n == 4) then {
++  if offset == zero_extend(UART_OFFSET_DATA) & ('n == 8 | 'n == 4) then {
 +    if   get_config_print_platform()
 +    then print_platform("uart[" ^ BitStr(offset) ^ "] <- " ^ BitStr(data));
 +    if UART_DLAB == bitzero then plat_term_write(data[7..0]);
 +    MemValue(true)
-+  } else if offset == UART_OFFSET_LINE_CTL & ('n == 8 | 'n == 4) then {
++  } else if offset == zero_extend(UART_OFFSET_LINE_CTL) & ('n == 8 | 'n == 4) then {
 +    if   get_config_print_platform()
 +    then print_platform("uart[" ^ BitStr(offset) ^ "] <- " ^ BitStr(data));
 +    UART_DLAB = data[7];
@@ -189,7 +188,7 @@ index ea27f48..eb8946d 100644
    then clint_load(t, paddr, width)
    else if within_htif_readable(paddr, width) & (1 <= 'n)
    then htif_load(t, paddr, width)
-@@ -476,7 +549,9 @@ function mmio_read forall 'n, 0 < 'n <= max_mem_access . (t : AccessType(ext_acc
+@@ -478,7 +551,9 @@ function mmio_read forall 'n, 0 < 'n <= max_mem_access . (t : AccessType(ext_acc
    }
  
  function mmio_write forall 'n, 0 <'n <= max_mem_access . (paddr : xlenbits, width : atom('n), data: bits(8 * 'n)) -> MemoryOpResult(bool) =

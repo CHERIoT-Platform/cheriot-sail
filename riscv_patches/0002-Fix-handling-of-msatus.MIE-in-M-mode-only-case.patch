@@ -1,7 +1,7 @@
-From 8f054703175f4f1421b4638cfca50ba1e4e283bd Mon Sep 17 00:00:00 2001
+From 848c46be16d338cca297ca1e19527406f75befb5 Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Mon, 31 Oct 2022 14:21:17 +0000
-Subject: [PATCH 02/10] Fix handling of msatus.MIE in M-mode only case.
+Subject: [PATCH 2/9] Fix handling of msatus.MIE in M-mode only case.
 
 Previously if neither user or supervisor mode are present
 dispatchInterrupt ignored mstatus.MIE leading to an infinite interrupt
@@ -11,12 +11,12 @@ loop.
  1 file changed, 8 insertions(+), 4 deletions(-)
 
 diff --git a/model/riscv_sys_control.sail b/model/riscv_sys_control.sail
-index 9e684d9..54a8daf 100644
+index 914caec..6b2aa42 100644
 --- a/model/riscv_sys_control.sail
 +++ b/model/riscv_sys_control.sail
-@@ -341,10 +341,14 @@ function dispatchInterrupt(priv : Privilege) -> option((InterruptType, Privilege
+@@ -345,10 +345,14 @@ function dispatchInterrupt(priv : Privilege) -> option((InterruptType, Privilege
     */
-   if (~ (haveUsrMode())) | ((~ (haveSupMode())) & (~ (haveNExt()))) then {
+   if not(haveUsrMode()) | (not(haveSupMode()) & not(haveNExt())) then {
      assert(priv == Machine, "invalid current privilege");
 -    let enabled_pending = mip.bits() & mie.bits();
 -    match findPendingInterrupt(enabled_pending) {

@@ -1,19 +1,19 @@
-From abca61fad742ce147f8877862f072a28df700e2b Mon Sep 17 00:00:00 2001
+From 4b555538e3fdf552799b5eae2f422c0aeb6a699f Mon Sep 17 00:00:00 2001
 From: Robert Norton <ronorton@microsoft.com>
 Date: Fri, 3 Feb 2023 13:13:17 +0000
-Subject: [PATCH 09/10] Add a hacky mechanism to track new lines in terminal
- and trace output and insert extra new lines to keep them separate.
+Subject: [PATCH 9/9] Add a hacky mechanism to track new lines in terminal and
+ trace output and insert extra new lines to keep them separate.
 
 ---
  c_emulator/riscv_platform_impl.c |  6 ++++++
- c_emulator/riscv_prelude.c       | 20 ++++++++++++++++++++
- 2 files changed, 26 insertions(+)
+ c_emulator/riscv_prelude.c       | 24 ++++++++++++++++++++++--
+ 2 files changed, 28 insertions(+), 2 deletions(-)
 
 diff --git a/c_emulator/riscv_platform_impl.c b/c_emulator/riscv_platform_impl.c
-index 9aca0b7..e554d09 100644
+index 75f77e9..c181bb4 100644
 --- a/c_emulator/riscv_platform_impl.c
 +++ b/c_emulator/riscv_platform_impl.c
-@@ -44,9 +44,15 @@ uint64_t rv_htif_tohost = UINT64_C(0x80001000);
+@@ -47,9 +47,15 @@ uint64_t rv_htif_tohost = UINT64_C(0x80001000);
  uint64_t rv_insns_per_tick = UINT64_C(100);
  
  int term_fd = 1; // set during startup
@@ -30,12 +30,12 @@ index 9aca0b7..e554d09 100644
 +    have_newline = c == '\n';
  }
 diff --git a/c_emulator/riscv_prelude.c b/c_emulator/riscv_prelude.c
-index ad5a831..2235ba0 100644
+index f65c591..2b8d3df 100644
 --- a/c_emulator/riscv_prelude.c
 +++ b/c_emulator/riscv_prelude.c
-@@ -1,33 +1,53 @@
- #include "riscv_prelude.h"
+@@ -2,37 +2,57 @@
  #include "riscv_config.h"
+ #include "riscv_platform_impl.h"
  
 +/* Attempt to keep track of whether output is at the start of a line so that we
 + * can produce nicer output if trace output interrupts terminal output. */
@@ -44,13 +44,14 @@ index ad5a831..2235ba0 100644
 +void ensure_newline()
 +{
 +  if (!have_newline)
-+    putchar('\n');
++    fputc('\n', trace_log);
 +}
 +
  unit print_string(sail_string prefix, sail_string msg)
  {
+-  printf("%s%s\n", prefix, msg);
 +  ensure_newline();
-   printf("%s%s\n", prefix, msg);
++  fprintf(trace_log, "%s%s\n", prefix, msg);
 +  have_newline = true;
    return UNIT;
  }
@@ -58,7 +59,8 @@ index ad5a831..2235ba0 100644
  unit print_instr(sail_string s)
  {
 +  ensure_newline();
-   if (config_print_instr) printf("%s\n", s);
+   if (config_print_instr)
+     fprintf(trace_log, "%s\n", s);
 +  have_newline = true;
    return UNIT;
  }
@@ -66,7 +68,8 @@ index ad5a831..2235ba0 100644
  unit print_reg(sail_string s)
  {
 +  ensure_newline();
-   if (config_print_reg) printf("%s\n", s);
+   if (config_print_reg)
+     fprintf(trace_log, "%s\n", s);
 +  have_newline = true;
    return UNIT;
  }
@@ -74,7 +77,8 @@ index ad5a831..2235ba0 100644
  unit print_mem_access(sail_string s)
  {
 +  ensure_newline();
-   if (config_print_mem_access) printf("%s\n", s);
+   if (config_print_mem_access)
+     fprintf(trace_log, "%s\n", s);
 +  have_newline = true;
    return UNIT;
  }
@@ -82,11 +86,19 @@ index ad5a831..2235ba0 100644
  unit print_platform(sail_string s)
  {
 +  ensure_newline();
-   if (config_print_platform) printf("%s\n", s);
+   if (config_print_platform)
+     fprintf(trace_log, "%s\n", s);
 +  have_newline = true;
    return UNIT;
  }
  
+@@ -59,4 +79,4 @@ bool get_config_print_platform(unit u)
+ bool get_config_print_exception(unit u)
+ {
+   return (config_print_exception) ? true : false;
+-}
+\ No newline at end of file
++}
 -- 
 2.39.2
 
