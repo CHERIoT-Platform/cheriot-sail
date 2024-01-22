@@ -82,7 +82,7 @@ function rC r = {
     13 => x13,
     14 => x14,
     15 => x15,
-    _  => internal_error(__FILE__, __LINE__,"Invalid capability register")
+    _  => throw Error_not_rv32e_register()
   }
 }
 
@@ -108,7 +108,7 @@ function wC (r, v) = {
     13 => x13 = v,
     14 => x14 = v,
     15 => x15 = v,
-    _  => internal_error(__FILE__, __LINE__,"Invalid capability register")
+    _  => throw Error_not_rv32e_register()
   };
   if (r != 0) then {
      rvfi_wX(r, v.address);
@@ -148,22 +148,6 @@ function ext_init_regs () = {
   x13 = null_cap;
   x14 = null_cap;
   x15 = null_cap;
-  x16 = null_cap;
-  x17 = null_cap;
-  x18 = null_cap;
-  x19 = null_cap;
-  x20 = null_cap;
-  x21 = null_cap;
-  x22 = null_cap;
-  x23 = null_cap;
-  x24 = null_cap;
-  x25 = null_cap;
-  x26 = null_cap;
-  x27 = null_cap;
-  x28 = null_cap;
-  x29 = null_cap;
-  x30 = null_cap;
-  x31 = null_cap;
 
   misa->X() = 0b1;
   mccsr->d() = 0b1;
@@ -195,23 +179,7 @@ function ext_rvfi_init () = {
   x12 = root_cap_mem;
   x13 = root_cap_mem;
   x14 = root_cap_mem;
-  x15 = root_cap_mem;
-  x16 = root_cap_mem;
-  x17 = root_cap_mem;
-  x18 = root_cap_mem;
-  x19 = root_cap_mem;
-  x20 = root_cap_mem;
-  x21 = root_cap_mem;
-  x22 = root_cap_mem;
-  x23 = root_cap_mem;
-  x24 = root_cap_mem;
-  x25 = root_cap_mem;
-  x26 = root_cap_mem;
-  x27 = root_cap_mem;
-  x28 = root_cap_mem;
-  x29 = root_cap_mem;
-  x30 = root_cap_mem;
-  x31 = root_cap_mem;
+  x15 = root_cap_mem
 }
 
 /* register names */
