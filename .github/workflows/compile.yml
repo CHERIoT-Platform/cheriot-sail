@@ -9,7 +9,7 @@ jobs:
     - name: Install dependencies
       run: |
         sudo apt update
-        sudo apt install -y opam zlib1g-dev pkg-config libgmp-dev z3  cvc4
+        sudo apt install -y --no-install-recommends opam zlib1g-dev pkg-config libgmp-dev z3 cvc4 texlive-plain-generic texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-science texlive-fonts-recommended texlive-fonts-extra texlive-bibtex-extra texlive-extra-utils latexmk
     - name: Init opam
       run: opam init -y
     - name: Install sail
@@ -29,7 +29,11 @@ jobs:
         cp c_emulator/cheriot_sim install
         cp LICENSE install/LICENCE-cheriot-sail
         cp sail-riscv/LICENCE install/LICENCE-sail-riscv
-    - name: Upload artifact
+    - name: Build arch doc
+      run: |
+        eval $(opam env) && make -C archdoc
+        cp archdoc/cheriot-architecture.pdf install
+    - name: Upload simulator artifact
       uses: actions/upload-artifact@v3
       with:
         name: cheriot_sim
