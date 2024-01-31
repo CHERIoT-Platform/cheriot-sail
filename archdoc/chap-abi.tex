@@ -181,7 +181,7 @@ As with existing RISC-V, some of these are in two forms because RISC-V loads and
 The relocation numbers here are the ones used in the current prototype and are expected to change prior to standardization.
 
 \PCC{} or \CGP{} relative relocations consist of a pair of either \insnref{auipcc} or \insnref{auicgp} plus a 12-bit immediate instruction.
-In most cases (when the offset is within $\pm2$ KiB) linker relaxation can reduce this to a single instruction.
+In most cases (when the offset is within $\pm2$ KiB) linker relaxation can reduce this to a single instruction for \CGP-relative accesses.
 The \insnref{AUICGP} instruction uses an entire major opcode and is rarely needed because it is uncommon for a compartment to have more than 4 KiB of read-write global data (arguably a large globals section is an indication that a compartment should be split or refactored).
 Therefore, in future we could consider alternative relocations that don't require \insnref{auicgp}, such as a three instruction sequence consisting of \asm{lui}, \asm{addi} and \insnref{cincaddr}.
 This would require more complex linker relaxations to retain good code size and efficiency and we have not yet attempted it.
@@ -190,14 +190,14 @@ This would require more complex linker relaxations to retain good code size and 
 	\begin{center}
 		\begin{tabular}{l|l|p{7cm}}
 			Relocation & Value & Meaning \\ \hline
-			\asm{CHERI_COMPARTMENT_CGPREL_HI}         & 220 & 20-bit, 11-bit shifted \CGP-relative displacement for use in \insnref{auicgp}. \\
-			\asm{CHERI_COMPARTMENT_CGPREL_LO_I}       & 221 & 12-bit \CGP-relative displacement for use in I-type instructions. \\
-			\asm{CHERI_COMPARTMENT_CGPREL_LO_S}       & 222 & 12-bit \CGP-relative displacement for use in S-type instructions. \\
-			\asm{CHERI_COMPARTMENT_PCCREL_HI}         & 223 & 20-bit, 11-bit shifted \PCC-relative displacement for use in \insnref{auipcc}. \\
-			\asm{CHERI_COMPARTMENT_PCCREL_LO}         & 224 & 12-bit displacement for use in I-type instructions. The displacement is relative to the \insnref{auipcc} instruction. \\
-			\asm{CHERI_COMPARTMENT_SIZE}              & 225 & The size of the referenced symbol, applied to a \insnref{CSetBounds} instruction. \\
+			\asm{CHERIOT_COMPARTMENT_HI}         & 220 & 20-bit, 11-bit shifted \PCC- or \CGP-relative displacement for use in \insnref{auicgp} or \insnref{auipcc}. \\
+			\asm{CHERIOT_COMPARTMENT_LO_I}       & 221 & 12-bit \PCC- or \CGP-relative displacement for use in I-type instructions. \\
+			\asm{CHERIOT_COMPARTMENT_LO_S}       & 222 & 12-bit \PCC- or \CGP-relative displacement for use in S-type instructions. \\
+			\asm{CHERIOT_COMPARTMENT_SIZE}       & 223 & The size of the referenced symbol, applied to a \insnref{CSetBounds} instruction. \\
 		\end{tabular}
 	\caption{\label{tab:relocs}The relocations defined for the \cherimcu{} ABI}
 	\end{center}
 \end{table}
 
+The same relocations are applied for both \PCC{} and \CGP{} relative accesses.
+The linker is responsible for determining the target of the relocation and will rewrite \insnref{auipcc} or \insnref{auicgp} to the correct instruction depending on the target and update the offset depending on the kind of target.
