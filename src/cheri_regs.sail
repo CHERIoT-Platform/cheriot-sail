@@ -113,7 +113,7 @@ function wC (r, v) = {
   if (r != 0) then {
      rvfi_wX(r, v.address);
      if get_config_print_reg() then
-       print_reg("x" ^ string_of_int(r) ^ " <- " ^ RegStr(v));
+       print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }
 }
 
@@ -241,7 +241,7 @@ mapping cap_creg_name : bits(3) <-> string = {
 
 function string_of_capreg_idx(reg : capreg_idx) -> string =
   match reg {
-    0b0 @ greg : bits(5) => "c" ^ string_of_int(unsigned(greg)) ^ "/" ^ cap_reg_name_abi(greg),
+    0b0 @ greg : bits(5) => "c" ^ dec_str(unsigned(greg)) ^ "/" ^ cap_reg_name_abi(greg),
     0b100000 => "PCC",
     0b111101 => "MTCC",
     0b111101 => "MTDC",
