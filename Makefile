@@ -451,7 +451,7 @@ clean:
 	-rm -rf generated_definitions/lem-for-rmem/*
 	-make -C $(SOFTFLOAT_LIBDIR) clean
 	-make -C properties clean
-	-rm -f $(addprefix c_emulator/cheri_riscv_sim_RV,32 64)  $(addprefix c_emulator/cheri_riscv_rvfi_RV, 32 64)
+	-rm -f $(addprefix c_emulator/cheri_riscv_sim_RV,32 64)  $(addprefix c_emulator/cheri_riscv_rvfi_RV, 32 64) c_emulator/cheriot_sim
 	-rm -rf ocaml_emulator/_sbuild ocaml_emulator/_build ocaml_emulator/cheri_riscv_ocaml_sim_RV32 ocaml_emulator/cheri_riscv_ocaml_sim_RV64 ocaml_emulator/tracecmp
 	-rm -f *.gcno *.gcda
 	-Holmake cleanAll
