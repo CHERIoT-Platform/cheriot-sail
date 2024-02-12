@@ -20,9 +20,6 @@ jobs:
         submodules: true
     - name: Build simulators
       run: |
-        # fake committer details to satisfy git am
-        git config --global user.name "No One"
-        git config --global user.email "noone@nowhere.com"
         eval $(opam env) && make csim
         mkdir install
         cp c_emulator/cheriot_sim install
