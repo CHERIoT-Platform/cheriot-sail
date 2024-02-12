@@ -13,7 +13,7 @@ jobs:
     - name: Init opam
       run: opam init -y
     - name: Install sail
-      run: opam pin -y sail 0.16
+      run: opam pin -y sail 0.17.1
     - name: Check out repository code
       uses: actions/checkout@HEAD
       with:
