@@ -20,12 +20,11 @@ opam init
 opam install sail
 ```
 
-Then clone the repo and apply some local patches to the sail-riscv submodule (we're working to upstream these changes but aren't there yet):
+Then clone the repo:
 
 ```
 git clone --recurse-submodules https://github.com/microsoft/cheriot-sail
 cd cheriot-sail
-make patch_sail_riscv
 ```
 
 Finally build the C emulator:
