@@ -23,7 +23,6 @@ jobs:
         # fake committer details to satisfy git am
         git config --global user.name "No One"
         git config --global user.email "noone@nowhere.com"
-        make patch_sail_riscv
         eval $(opam env) && make csim
         mkdir install
         cp c_emulator/cheriot_sim install
