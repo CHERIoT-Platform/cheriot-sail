@@ -27,7 +27,10 @@ SAIL_DEFAULT_INST = $(SAIL_RISCV_MODEL_DIR)/riscv_insts_base.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_cext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_mext.sail \
                     $(SAIL_RISCV_MODEL_DIR)/riscv_insts_zicsr.sail \
-                    $(SAIL_CHERI_MODEL_DIR)/cheri_insts.sail
+                    $(SAIL_CHERI_MODEL_DIR)/cheri_insts_begin.sail \
+                    $(SAIL_CHERI_MODEL_DIR)/cheri_insts.sail \
+                    $(SAIL_CHERI_MODEL_DIR)/cheri_insts_cext.sail \
+                    $(SAIL_CHERI_MODEL_DIR)/cheri_insts_end.sail
 # $(SAIL_FD_INST) \
 # $(SAIL_RISCV_MODEL_DIR)/riscv_insts_aext.sail
 SAIL_SEQ_INST  = $(SAIL_DEFAULT_INST) $(SAIL_RISCV_MODEL_DIR)/riscv_jalr_seq.sail
@@ -110,14 +113,12 @@ SAIL_ARCH_RVFI_SRCS = \
 
 SAIL_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_ext.sail \
-                 $(SAIL_RISCV_MODEL_DIR)/riscv_decode_ext.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
 
 RVFI_STEP_SRCS = $(SAIL_RISCV_MODEL_DIR)/riscv_step_common.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_step_rvfi.sail \
-                 $(SAIL_RISCV_MODEL_DIR)/riscv_decode_ext.sail \
                  $(SAIL_CHERI_MODEL_DIR)/cheri_decode_ext.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_fetch_rvfi.sail \
                  $(SAIL_RISCV_MODEL_DIR)/riscv_step.sail
@@ -152,14 +153,14 @@ SAIL:=$(SAIL_DIR)/sail
 export SAIL_DIR
 else
 # Use sail from opam package
-SAIL_DIR=$(shell opam config var sail:share)
+SAIL_DIR=$(shell opam var sail:share)
 SAIL:=sail
 endif
 SAIL_LIB_DIR:=$(SAIL_DIR)/lib
 export SAIL_LIB_DIR
 SAIL_SRC_DIR:=$(SAIL_DIR)/src
 
-LEM_DIR?=$(shell opam config var lem:share)
+LEM_DIR?=$(shell opam var lem:share)
 export LEM_DIR
 #Coq BBV library hopefully checked out in directory above us
 BBV_DIR?=../bbv

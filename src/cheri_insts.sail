@@ -958,74 +958,21 @@ mapping clause encdec = StoreCapImm(cs2, rs1, off7 @ off5) <-> off7 : bits(7) @ 
 mapping clause assembly = LoadCapImm(cd, rs1, offset)   <-> "lc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_reg_name(cs2) ^ sep() ^ hex_bits_12(offset) ^ opt_spc() ^ "(" ^ opt_spc() ^ reg_name(rs1) ^ opt_spc() ^ ")"
 
-/* ****************************************************************** */
-/* Use encoding for C.LDSP (RV64) / C.FLWSP (RV32) for CLCSP */
-
-union clause ast = C_CLCSP : (bits(6), regidx)
-
-mapping clause encdec_compressed = C_CLCSP(ui86 @ ui5 @ ui43, rd)
-      if rd != zreg
-  <-> 0b011 @ ui5 : bits(1) @ rd : regidx @ ui43 : bits(2) @ ui86 : bits(3) @ 0b10
-      if rd != zreg
-
-function clause execute (C_CLCSP(uimm, rd)) = {
-  let imm : bits(12) = zero_extend(uimm @ 0b000);
-  execute(LoadCapImm(rd, sp, imm))
-}
-
-mapping clause assembly = C_CLCSP(uimm, rd)
-      if rd != zreg
-  <-> "c.clcsp" ^ spc() ^ reg_name(rd) ^ sep() ^ hex_bits_6(uimm)
-      if rd != zreg
-
-/* ****************************************************************** */
-/* Use encoding for C.SDSP (RV64) / C.FSWSP (RV32) for CSCSP */
-
-union clause ast = C_CSCSP : (bits(6), regidx)
-
-mapping clause encdec_compressed = C_CSCSP(ui86 @ ui53, rs2)
-  <-> 0b111 @ ui53 : bits(3) @ ui86 : bits(3) @ rs2 : regidx @ 0b10
-
-function clause execute (C_CSCSP(uimm, rs2)) = {
-  let imm : bits(12) = zero_extend(uimm @ 0b000);
-  execute(StoreCapImm(rs2, sp, imm))
-}
-
-mapping clause assembly = C_CSCSP(uimm, rs2)
-  <-> "c.cscsp" ^ spc() ^ reg_name(rs2) ^ sep() ^ hex_bits_6(uimm)
-
-/* ****************************************************************** */
-/* The encoding for C.LD (RV64) and C.FLW (RV32) is used for C.CLC */
-
-union clause ast = C_CLC : (bits(5), cregidx, cregidx)
-
-mapping clause encdec_compressed = C_CLC(ui76 @ ui53, rs1, rd)
-  <-> 0b011 @ ui53 : bits(3) @ rs1 : cregidx @ ui76 : bits(2) @ rd : cregidx @ 0b00
-
-function clause execute (C_CLC(uimm, rsc, rdc)) = {
-  let imm : bits(12) = zero_extend(uimm @ 0b000);
-  let rd = creg2reg_idx(rdc);
-  let rs = creg2reg_idx(rsc);
-  execute(LoadCapImm(rd, rs, imm))
-}
-
-mapping clause assembly = C_CLC(uimm, rsc, rdc)
-  <-> "c.clc" ^ spc() ^ creg_name(rdc) ^ sep() ^ creg_name(rsc) ^ sep() ^ hex_bits_8(uimm @ 0b000)
-
-/* ****************************************************************** */
-/* The encoding for C.SD (RV64) and C.FSW (RV32) is used for C.CSC */
-
-union clause ast = C_CSC : (bits(5), cregidx, cregidx)
-
-mapping clause encdec_compressed = C_CSC(ui76 @ ui53, rs1, rs2)
-  <-> 0b111 @ ui53 : bits(3) @ rs1 : bits(3) @ ui76 : bits(2) @ rs2 : bits(3) @ 0b00
-
-function clause execute (C_CSC(uimm, rsc1, rsc2)) = {
-  let imm : bits(12) = zero_extend(uimm @ 0b000);
-  let rs1 = creg2reg_idx(rsc1);
-  let rs2 = creg2reg_idx(rsc2);
-  execute(StoreCapImm(rs2, rs1, imm))
-}
-
-mapping clause assembly = C_CSC(uimm, rsc1, rsc2)
-  <-> "c.csc" ^ spc() ^ creg_name(rsc1) ^ sep() ^ creg_name(rsc2) ^ sep() ^ hex_bits_8(uimm @ 0b000)
+/*
+ * Encoding/assembly mappings for instructions that overlap existing RISC-V
+ * encodings. This does not include loads/stores since they are not decoded
+ * differently, but instead use hooks for semantic differences. CHERIoT
+ * only supports cap mode see these always have priority over the RISC-V
+ * ones.
+ */
+mapping clause encdec_capmode = AUIPCC(imm, cd) <-> imm @ cd @ 0b0010111
+mapping clause assembly = AUIPCC(imm, cd)
+  <-> "auipcc" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_20(imm)
+mapping clause encdec_capmode = CJALR(imm, cs1, cd) <-> imm @ cs1 @ 0b000 @ cd @ 0b1100111
+mapping clause assembly = CJALR(imm, cs1, cd)
+  <-> "cjalr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ hex_bits_12(imm)
+/* See `mapping clause encdec = RISCV_JAL` for why we have to use this syntax */
+mapping clause encdec_capmode = CJAL(imm_19 @ imm_7_0 @ imm_8 @ imm_18_13 @ imm_12_9 @ 0b0, cd)
+  <-> imm_19 : bits(1) @ imm_18_13 : bits(6) @ imm_12_9 : bits(4) @ imm_8 : bits(1) @ imm_7_0 : bits(8) @ cd @ 0b1101111
+mapping clause assembly = CJAL(imm, cd)
+  <-> "cjal" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ hex_bits_21(imm)
