@@ -60,18 +60,22 @@
 /*  SUCH DAMAGE.                                                                         */
 /*=======================================================================================*/
 
-function ext_decode_compressed(bv : bits(16)) -> ast = {
-  match(encdec_compressed_capmode(bv)) {
-    /* Use the default decoding for non-capmode encodings. */
-    NOT_C_CAPMODE(_) => encdec_compressed(bv),
-    C_CAPMODE_AST => C_CAPMODE_AST
-  }
-}
+/* Put the illegal instructions last to use their wildcard match. */
 
-function ext_decode(bv : bits(32)) -> ast = {
-  match(encdec_capmode(bv)) {
-    /* Use the default decoding for non-capmode encodings. */
-    NOT_CAPMODE(_) => encdec(bv),
-    CAPMODE_AST => CAPMODE_AST
-  }
+/* Wilcard match for 32-bit non-capmode encodings. */
+union clause ast = NOT_CAPMODE : word
+function clause execute(NOT_CAPMODE(s)) = {
+  internal_error(__FILE__, __LINE__, "should be unreachable: execute(NOT_CAPMODE(" ^ BitStr(s) ^ "))");
+  RETIRE_FAIL
 }
+mapping clause encdec_capmode = NOT_CAPMODE(s) <-> s
+end encdec_capmode
+
+/* Wilcard match for 16-bit non-capmode encodings. */
+union clause ast = NOT_C_CAPMODE : half
+function clause execute(NOT_C_CAPMODE(s)) = {
+  internal_error(__FILE__, __LINE__, "should be unreachable: execute(NOT_C_CAPMODE(" ^ BitStr(s) ^ "))");
+  RETIRE_FAIL
+}
+mapping clause encdec_compressed_capmode = NOT_C_CAPMODE(s) <-> s
+end encdec_compressed_capmode
