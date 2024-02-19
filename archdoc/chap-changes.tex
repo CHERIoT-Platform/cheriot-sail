@@ -12,6 +12,15 @@
     Tag clearing is preferable for software because it removes the possibility of a trap when copying untrusted inputs.
     It is also likely easier to implement in hardware.
     The capability exception code that was previously used for this (0x16) is now reserved.
-    \item[] The relocations for \insnref{auicgp} and \insnref{auipcc} are unified and the CHERIoT-specific relocations are now named with CHERIOT, rather than CHERI, as the prefix.
+    \item[\ghpr{33}] The relocations for \insnref{auicgp} and \insnref{auipcc} are unified and the CHERIoT-specific relocations are now named with CHERIOT, rather than CHERI, as the prefix.
+    \item[\ghissue{23}, \ghissue{18}, \ghpr{37}] Jumps and branches no longer include bounds checks.
+    Instead, any \PCC{} bounds error will be detected on the subsequent instruction fetch at the target.
+    To avoid problems with unrepresentable capabilities the tag of the value stored in \EPCC{} is cleared for instruction fetch bounds exceptions.
+    \item[\ghissue{30}, \ghpr{37}] Validate \MEPCC{} and \MTCC{} on write.
+    If either of these is written with a sealed or non-executable capability then the tag is cleared.
+    If the least significant bit of \MEPCC{}.\caddress{} is set on write then it is cleared and the tag is cleared.
+    If either of the two least significant bits of \MTCC{}.\caddress{} is set on write then they are cleared and the tag is cleared.
+    This simplifies both ISA and hardware and avoids potential violations of capability monotonicity due to \asm{mtvec} and \asm{mepc} legalization.
+    vectored interrupt mode is explicitly unsupported.
     \end{description}
 \end{description}

@@ -116,9 +116,9 @@ function ext_fetch_check_pc(start_pc, pc) = {
     if      not(PCC.tag)
     then    Ext_FetchAddr_Error(CapEx_TagViolation)
     else if isCapSealed(PCC)
-    then    Ext_FetchAddr_Error(CapEx_SealViolation)
+    then    internal_error(__FILE__, __LINE__, "PCC should never be sealed")
     else if not(PCC.permit_execute)
-    then    Ext_FetchAddr_Error(CapEx_PermitExecuteViolation)
+    then    internal_error(__FILE__, __LINE__, "PCC should always be executable")
     else if not(inCapBounds(PCC, pc, 2))
     then    Ext_FetchAddr_Error(CapEx_BoundsViolation)
     else    Ext_FetchAddr_OK(pc)
@@ -130,8 +130,15 @@ function ext_fetch_check_pc(start_pc, pc) = {
   }
 }
 
-function ext_handle_fetch_check_error(e : ext_fetch_addr_error) -> unit =
+function ext_handle_fetch_check_error(e : ext_fetch_addr_error) -> unit = {
+  if e == CapEx_BoundsViolation then {
+    // Always clear the tag on PCC when taking a bounds violation on fetch.
+    // This avoids having to do a representability check on MEPCC
+    // when the PC goes out of bounds.
+    PCC = clearTag(PCC);
+  };
   handle_cheri_pcc_exception(e)
+}
 
 /* CHERI control address checks */
 
@@ -139,26 +146,18 @@ type ext_control_addr_error = (CapEx, capreg_idx)
 
 /* the control address is derived from a non-PC register, e.g. in JALR */
 function ext_control_check_addr(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
-  /* We are given the addr without any bit[0] clearing, so the addition
-   * below may include a set addr[0], and so the bounds checks should
-   * be accurate.
-   */
-  let target : xlenbits = [pc with 0=bitzero];
-  if   not(inCapBounds(PCC, target, min_instruction_bytes ()))
-  then Ext_ControlAddr_Error(CapEx_BoundsViolation, PCC_IDX)
-  else Ext_ControlAddr_OK(target)
+  // We used to do bounds check here but this is now performed only on
+  // instruction fetch
+  Ext_ControlAddr_OK(pc)
 }
 
 /* the control address is derived from the PC register, e.g. in JAL */
 function ext_control_check_pc(pc : xlenbits) -> Ext_ControlAddr_Check(ext_control_addr_error) = {
-  if   not(inCapBounds(PCC, pc, min_instruction_bytes ()))
-  then Ext_ControlAddr_Error(CapEx_BoundsViolation, PCC_IDX)
-  else Ext_ControlAddr_OK(pc)
+  Ext_ControlAddr_OK(pc)
 }
 
 function ext_handle_control_check_error(err : ext_control_addr_error) -> unit = {
-  let (capEx, regnum) = err;
-  handle_cheri_cap_exception(capEx, regnum)
+  internal_error(__FILE__, __LINE__, "ext_handle_control_check_error should be unreachable")
 }
 
 /* CHERI data address checks */
