@@ -72,8 +72,9 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -
   match p {
     Machine => {
       let (representable, mepcc) = setCapAddr(PCC, pc);
-      /* I think TCC could cause violation of this (see below) */
-      assert(representable, "mepcc should always be representable");
+      // mepcc might be unrepresentable if this is a bounds violation on PCC.
+      // In that case PCC should have had the tag cleared in ext_handle_fetch_check_error
+      assert(representable | not(mepcc.tag));
       MEPCC   = mepcc
     },
     _ => internal_error(__FILE__, __LINE__,"unsupported")
@@ -84,59 +85,46 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -
 function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
   if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
   let tcc : Capability = MTCC;
-
-  match tvec_addr(Mk_Mtvec(tcc.address), c) { 
-    Some(addr) => { nextPCC = tcc; addr }, /* XXX addr could be unrepresentable or sealing violation! */
-    None()     => internal_error(__FILE__, __LINE__,"Invalid tvec mode")
-  }
+  let v = Mk_Mtvec(tcc.address);
+  /* MTCC should have been validated and legalized on write.
+   * Only direct mode is supported */
+  match (trapVectorMode_of_bits(v[Mode])) {
+    TV_Direct => (),
+    _         => internal_error(__FILE__, __LINE__, "unsupported trap mode"),
+  };
+  nextPCC = tcc; 
+  tcc.address
 }
 
 /*
  * Get the user-visible ?EPC from ?EPCC.  This is not used for control flow,
- * just for reads from (integer) CSRs.
- *
- * See legalize_epcc for a discussion of felicity of readback and note that
- * updating EPC with a sentry installed in EPCC is expected to fail, even if
- * the update does not change the offset.  (However, it would be very unusual
- * for software to ever bring the core into such a state except in testing.)
+ * just for reads from (integer) CSRs. EPCC is validated on write
+ * so no legalization is required here.
  */
 val get_xret_target : Privilege -> xlenbits effect {escape, rreg}
 function get_xret_target(p) = {
   if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
   let cap : Capability = MEPCC;
-  legalize_xepc(cap.address)
+  cap.address
 }
 
 /*
- * Upon setting any of the ?EPCC values using the (integer) CSRs, derive the
- * result using the current contents of EPCC.  If that's sealed (esp., a
- * sentry) this will de-tag, which won't work out very well.
- *
- * Legalization is deferred until read.
+ * Setting mepc via CSRW is not supported. MEPCC should be
+ * written using CSpecialRW instead.
  */
 val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {escape}
 function set_xret_target(p, value) = {
   internal_error(__FILE__, __LINE__,"unsupported");
 }
 
+/**
+ * MEPCC is validated and legalized on write, so this just sets
+ * up the new PCC and returns new PC.
+ */
 val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg, escape}
 function prepare_xret_target(p) = {
   if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
-
-  /* Similar to prepare_trap_vector above we need to return the absolute address
-     destined for PC, rather than the offset (architecutral PC) */
   let epcc : Capability = MEPCC;
-
-  let epcc = legalize_epcc(epcc);
-
-  /*
-   * Sentries unseal on transfer into nextPCC; other sealed types will trap
-   * with a seal violation later, when we go to do a fetch from nextPCC.
-   */
-  let epcc = if epcc.otype == to_bits(cap_otype_width, otype_sentry)
-             then unsealCap(epcc)
-             else epcc;
-
   nextPCC = epcc;
   epcc.address
 }

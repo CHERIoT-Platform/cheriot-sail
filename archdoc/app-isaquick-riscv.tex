@@ -96,7 +96,6 @@
 	\optype{Control-Flow}
 
 	No special new control flow instructions are added, although RISC-V \texttt{JAL} / \texttt{JALR} become capability instructions \rvcheriasminsnref{CJAL}  / \rvcheriasminsnref{CJALR}.
-	The branch instructions also check that \PCC{} permits at least one 2-byte instruction to be loaded from the target address, otherwise they raise a capability bounds exception.
 
 	\optype{Memory-Access}
 	\label{quickref:mem}

@@ -95,17 +95,20 @@ union clause ast = CJAL : (bits(21), regidx)
  * ## Exceptions
  *
  * An exception is raised if:
- *   - **PCC**.**address** $+$ *imm* $\lt$ **PCC**.**base**.
- *   - **PCC**.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ **PCC**.**top**.
  *   - **PCC**.**address** $+$ *imm* is unaligned, ignoring bit 0.
+ * 
+ * ## Notes
+ *   - This instruction no longer attempts to check that the destination is
+ *     within the bounds of PCC.  In that case an exception will be raised 
+ *     raised by the subsequent instruction fetch.  EPCC will have the new
+ *     PC as address but will have the tag cleared due to the possibility of 
+ *     creating an unrepresentable PCC.  The bounds of EPCC will be 
+ *     undefined.
  */
 function clause execute(CJAL(imm, cd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
-  if not(inCapBounds(PCC, newPC, min_instruction_bytes())) then {
-    handle_cheri_cap_exception(CapEx_BoundsViolation, PCC_IDX);
-    RETIRE_FAIL
-  } else if newPC[1] == bitone & ~(haveRVC()) then {
+  if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
   } else {
@@ -133,10 +136,15 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  *   - *cs1* is sealed and is not a sentry.
  *   - *cs1* is a sentry and *imm* $\ne$ 0.
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
- *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
- *   - *cs1*.**address** $+$ *imm* $+$ min_instruction_bytes $\gt$ *cs1*.**top**.
- *   - *cs1*.**base** is unaligned.
  *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
+ *
+  * ## Notes
+ *   - This instruction no longer attempts to check that the destination is
+ *     within the bounds of PCC.  In that case an exception will be raised 
+ *     raised by the subsequent instruction fetch.  EPCC will have the new
+ *     PC as address but will have the tag cleared due to the possibility of 
+ *     creating an unrepresentable PCC.  The bounds of EPCC will be 
+ *     undefined.
  */
 function clause execute(CJALR(imm, cs1, cd)) = {
   let cs1_val = C(cs1);
@@ -150,9 +158,6 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
     handle_cheri_reg_exception(CapEx_PermitExecuteViolation, cs1);
-    RETIRE_FAIL
-  } else if not(inCapBounds(cs1_val, newPC, min_instruction_bytes())) then {
-    handle_cheri_reg_exception(CapEx_BoundsViolation, cs1);
     RETIRE_FAIL
   } else if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
@@ -330,6 +335,10 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
  *   a separate two-operand CSpecialR instruction and interpret *cs1* being
  *   **C0** as a write of **NULL** if the need to use a temporary capability
  *   register proves to be overly problematic for software.
+ * 
+ * - MEPCC and MTCC are validated and legalized on write. Any invalid write will
+ *   cause the tag to be cleared which might result in a tag violation
+ *   on instruction fetch following MRET or exception.
  */
 function clause execute (CSpecialRW(cd, scr, cs1)) = {
   let specialExists : bool = match unsigned(scr) {
@@ -346,20 +355,37 @@ function clause execute (CSpecialRW(cd, scr, cs1)) = {
     handle_cheri_cap_exception(CapEx_AccessSystemRegsViolation, 0b1 @ scr);
     RETIRE_FAIL
   } else {
-    let cs1_val = C(cs1);
+    var cs1_val = C(cs1);
     C(cd) = match unsigned(scr) {
       28 => MTCC,
       29 => MTDC,
       30 => MScratchC,
-      31 => legalize_epcc(MEPCC),
+      31 => MEPCC,
       _  => {assert(false, "unreachable"); undefined}
     };
     if (cs1 != zeros()) then {
       match unsigned(scr) {
-        28 => MTCC = legalize_tcc(MTCC, cs1_val),
+        28 => {
+          /* Validate that the new MTCC is unsealed, executable and 
+             indicates direct trap mode */
+          let invalid = cs1_val.address[1..0] != 0b00 |
+            isCapSealed(cs1_val) |
+            not(cs1_val.permit_execute);
+          /* Legalize MTCC.address / mtvec */
+          cs1_val.address[1..0] = 0b00;
+          MTCC = clearTagIf(cs1_val, invalid)
+        },
         29 => MTDC = cs1_val,
         30 => MScratchC = cs1_val,
-        31 => MEPCC = cs1_val,
+        31 => {
+          /* Validate that new MEPCC is aligned, unsealed and executable */
+          let invalid = cs1_val.address[0] != bitzero |
+            isCapSealed(cs1_val) |
+            not(cs1_val.permit_execute);
+          /* Legalize MEPCC.address / mepc */
+          cs1_val.address[0] = bitzero;
+          MEPCC = clearTagIf(cs1_val, invalid)
+        },
         _  => assert(false, "unreachable")
       }
     };

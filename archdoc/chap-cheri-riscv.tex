@@ -54,16 +54,22 @@ Additionally \insnriscvref{AUICGP} uses major opcode 0x7b.
 \section{Changes to instruction fetch / control flow}
 
 The program counter is extended to a capability, \PCC{}, with \PCC{}.\caddress{} assuming the role of the \PC{}.
-If \PCC{} is untagged, sealed, lacks \cappermX, or the instruction is not entirely within the bounds of \PCC{}, then an exception is raised.
+If \PCC{} becomes untagged or the instruction is not entirely within the bounds of \PCC{}, then an exception is raised.
 Note that the bounds check must take account of whether the fetched instruction is 2 or 4 bytes.
-Checks on jumps and branches mean the only way for \PCC{} to be untagged, sealed or non-executable is after an \asm{MRET} with an invalid \asm{MEPCC} or a trap with an invalid \asm{MTCC}.
-
-\insnriscvref{CJAL} and taken branch instructions check the destination address against the bounds of \PCC{}: if the bounds do not permit at least one 2-byte instruction to be loaded from the destination then a capability length violation exception is raised on the jump / branch instruction.
+If the program counter is outside the bounds of \PCC{} it might be unrepresentable in the compressed capability format (\cref{sec:bounds,sec:repcheck}).
+Therefore, to avoid violating capability monotonicity the value written to \MEPCC{} when there is an instruction fetch bounds violation has its tag cleared.
+Due to unrepresentability the bounds of \MEPCC{} might not correspond to the bounds of \PCC{} at the time of the exception in this case.
 
 \insnriscvref{CJALR} replaces the \asm{JALR} instruction and uses capabilities for the target and link register.
-It checks that the target capability is tagged, unsealed, executable and the address is in bounds before it is installed in \PCC{}.
-If the target is sealed with the reserved `sentry' type then it is unsealed before jumping to it.
-The link register, including the current \PCC{}, is sealed as a sentry.
+It checks that the target capability is tagged and executable before it is installed in \PCC{}.
+If the target is sealed with one of the reserved `sentry' types then it is unsealed before jumping to it, while possibly writing \asm{mstatus.MIE} (see \cref{sec:sealing}).
+If it is sealed with a non-sentry type an exception is raised.
+
+The link register written by \insnriscvref{CJAL} and \insnref{CJALR} is sealed as a sentry of the type corresponding to the current value of \asm{mstatus.MIE}.
+
+The checks on \insnriscvref{CJALR} and special capability writes (\cref{sec:scrs}) prevent execution with a \PCC{} that is sealed or lacks \cappermX{}.
+The only ways for \PCC{} to become untagged is by \asm{MRET} with an untagged \MEPCC{} or exception with untagged \MTCC{}.
+The latter will result in an unrecoverable exception loop.
 
 \section{Changes to memory accesses}
 
@@ -144,19 +150,11 @@ Similarly \cref{tab:risc-v-special-capability-registers} lists the access requir
 \section{Special capability registers}
 
 \label{subsection:cheri-riscv-scrs}
+\label{sec:scrs}
 
-Special Capability Registers (SCRs) are similar to CSRs in that they affect special functions such as exception delivery, except that they contain capabilities rather than integers.
-SCRs are accessed via a new instruction, \insnriscvref{CSpecialRW}, which behaves similarly to the RISC-V \asm{CSRRW} instruction.
+Special Capability Registers (SCRs) are similar to RISC-V's Control and Status Registers (CSRs) except that they contain capabilities rather than integers.
+They are accessed via a new instruction, \insnriscvref{CSpecialRW}, which behaves similarly to the RISC-V \asm{CSRRW} instruction.
 \asm{CSpecialRW} requires that \PCC{} has \cappermASR{}, otherwise it will raise an exception.
-
-Some SCRs replace existing RISC-V CSRs.
-Attempting to access the legacy RISC-V CSR via the \asm{CSR*} instructions results in a Reserved Instruction exception.
-Any special meaning or behavior associated with the CSR applies to the SCR's address field.
-For example, the lower two bits of \MTCC{}.\caddress{} select the trap mode, and the remaining bits (including the capability metadata) form the trap base address in the same way as \mtvec{}.
-Some RISC-V CSRs have write-any read-legal (WARL) bits that implicitly modify the written value to restrict the CSR to legal values.
-This legalization must be applied to the SCR's address when reading or writing an SCR.
-If this results in the capability becoming unrepresentable then the tag is cleared, as per \insnriscvref{CSetAddr}.
-If a sealed capability is written to an SCR with WARL bits then the tag is cleared, even if the bits would be unchanged by legalization.
 
 \cref{tab:risc-v-special-capability-registers} lists the SCRs and their properties:
 \textbf{Reset} indicates the reset value as one of the capability roots defined in \cref{sec:capenc}.
@@ -177,11 +175,32 @@ If a sealed capability is written to an SCR with WARL bits then the tag is clear
   }
 \end{table}
 
+The \MTCC{} and \MEPCC{} SCRs replace existing RISC-V CSRs \asm{mtvec} and \asm{mepcc} respectively.
+Attempting to access the legacy RISC-V CSR via the \asm{CSR*} instructions results in a Reserved Instruction exception.
+The special meaning associated with the CSR applies to the SCR's \caddress{} field and the value written is validated and legalized as follows:
+
+\begin{description}
+  \item[\MTCC{}] Only direct mode is suppported (not vectored). 
+  If either of the two least significant bits of the \caddress{} is set then they are cleared and the tag of the value written is cleared.
+  If the capability being written is sealed or does not have \cappermX{} then its tag is cleared.
+  \item[\MEPCC{}]
+  If the least significant bit of \caddress{} is set then it is cleared and the tag is cleared.
+  If the capability being written is sealed or does not have \cappermX{} then its tag is cleared.
+\end{description}
+
+These rules avoid potential problems due to legalisation where capabilities might become unrepresentable or sealed capabilties modified.
+
 \section{Changes to exception handling}
 
 Exception handling is the same as RISC-V except that \mtvec{} and \mepc{} are replaced by their equivalent SCRs.
-When taking an exception the current \PCC{}, with the address set to that of the trapping instruction, is placed in \MEPCC{}. \MTCC{} is then installed in \PCC{} and execution proceeds from the configured trap address according to the usual rules for \mtvec{}.
+
+When taking an exception the current \PCC{}, with the address set to that of the trapping instruction, is placed in \MEPCC{}.
+If the exception is a bounds violation on instruction fetch then the tag on \MEPCC{} is cleared.
+\MTCC{} is then installed in \PCC{} and execution proceeds from \MTCC.\caddress{}.
 When executing an \asm{MRET} instruction \MEPCC{} is moved to \PCC{} and execution proceeds from \MEPCC{}.\caddress{}.
+
+In either case if the new \PCC{} is untagged (due to an untagged \MEPCC{} or \MTCC{}) an CHERI tag violation exception is raised for the new \PC{}.
+In the case of an untagged \MTCC{} this will result in an unrecoverable exception loop.
 
 A new RISC-V exception code, 0x1C, is used for all CHERI specific exceptions, with a more detailed CHERI cause placed in \mtval{} as shown in \cref{fig-cheri-tval}.
 
@@ -605,14 +624,13 @@ The following instructions all set the capability \caddress{} and therefore requ
 Note that although \insnriscvref{CJAL} and \insnriscvref{CJALR} also set the address on the link register, it is guaranteed to be representable because its \caddress{} can be at most equal to \PCC{}.\ctop{} given that the jump itself is in bounds.
 Therefore no representability check is required for these instructions.
 
-Similarly, the value placed in \MEPCC{} on exception should always be representable given that \PC{} is always in bounds (or equal to \PCC{}.\ctop{} in the case of stepping off the end of \PCC{}).
-One exception to this is if \MTCC{} is configured in vectored mode and a subsequent exception goes to a \PC{} that is out of the bounds of \MTCC{}.
-This would cause a \PCC{} bounds exception and in this case \MEPCC{} might not be representable, in which case its tag should be cleared.
-It may be preferable not to support vectored mode, although note that care should also be taken when legalizing \asm{mtvec} (\MTCC.\caddress{}) to ensure that this does not violate sealing or representability.
-legalization of \asm{mepc} (clearing the least significant bit) may also cause values read from \MEPCC{} to be unrepresentable if it has been written with an unaligned address.
-This includes the implicit read by \asm{MRET}.
-In these cases the unrepresentable \MEPCC{} that results from the \PCC{} bounds exception should have its tag cleared.
-\TODO{These cases are probably pretty annoying for hardware. Although less in keeping with RISC-V behavior it would probably be easier to clear tag if \MEPCC{} is written with an unaligned address.}
+Bounds exceptions on instruction fetch might result in an unrepresentable \MEPCC{}.
+To simplify hardware while preserving capability monotonicity the tag of \MEPCC{} is always cleared on instruction fetch bounds violations.
+This unrepresentability might mean that the decoded bounds of \MEPCC{} do not match the bounds of \PCC{} at the time of the exception,
+but \MEPCC{}.\caddress{} will contain the address of the faulting instruction or instruction fetch.
+
+Validation of \MTCC{} and \MEPCC{} in \insnriscvref{CSpecialRW} prevents potential unrepresentability due to the legalisation of \asm{mtvec} and \asm{mepc}.
+To simplify hardware these special registers are validated on write, with violations clearing the tag of the value stored (\cref{sec:scrs}).
 
 \subsection{The NULL capability}
 \label{sec:null}
