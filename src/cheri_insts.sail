@@ -917,7 +917,7 @@ function clause execute StoreCapImm(cs2, cs1, imm) = {
 }
 
 /* AUICGP is a U-TYPE instruction with its own major opcode.
-   AUIPCC reusesthe AUIPC encoding: this handled by the post decode hook. */
+   AUIPCC reuses the AUIPC encoding: this handled by the post decode hook. */
 
 mapping clause encdec   = AUICGP(imm, cd) if (haveXcheri()) <-> imm : bits(20) @ cd @ 0b1111011 if (haveXcheri())
 
@@ -1017,7 +1017,7 @@ mapping clause assembly = StoreCapImm(cs2, rs1, offset) <-> "sc" ^ spc() ^ cap_r
  * Encoding/assembly mappings for instructions that overlap existing RISC-V
  * encodings. This does not include loads/stores since they are not decoded
  * differently, but instead use hooks for semantic differences. CHERIoT
- * only supports cap mode see these always have priority over the RISC-V
+ * only supports cap mode so these always have priority over the RISC-V
  * ones.
  */
 mapping clause encdec_capmode = AUIPCC(imm, cd) <-> imm @ cd @ 0b0010111
