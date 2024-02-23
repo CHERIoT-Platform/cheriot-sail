@@ -276,17 +276,18 @@ Additionally, we use major opcode 0x7b to encode \insnriscvref{AUICGP}, which is
 \begin{figure}
   \begin{bytefield}[bitwidth=\linewidth/32]{32}
     \bitheader[endianness=big]{0,8,9,17,18,21,22,24,25,31} \\
-    \bitbox{1}{R} & \bitbox{6}{$p$'6} & \bitbox{3}{otype'3} & \bitbox{4}{E'4} & \bitbox{9}{B'9} & \bitbox{9}{T'9} \\
+    \bitbox{1}{R} & \bitbox{6}{$p$'6} & \bitbox{3}{otype'3} & \bitbox{4}{E'4} & \bitbox{9}{T'9} & \bitbox{9}{B'9} \\
     \bitbox[lrb]{32}{$a$'32}
   \end{bytefield}
   \begin{description}
-    \item[R] a reserved bit, which is zero in the root capabilities (and hence all tagged capabilities), but may be set if untagged data is loaded into a register.
-    In this case its value must be preserved. This is very important because memory copies are performed with capability load a store instructions in order to preserve the tag on any capabilities present, meaning these instructions must also faithfully copy arbitrary untagged data.
+    \item[R] a reserved bit. This is zero in the root capabilities (and hence all tagged capabilities), but may be set if untagged data is loaded into a register.
+    In this case its value must be preserved.
+    This is important because memory copies are performed with capability load and store instructions in order to preserve the tag on any capabilities present, meaning these instructions must also faithfully copy arbitrary untagged data.
     \item[p] a 6-bit compressed permissions field (see \cref{sec:perms})
     \item[otype] a 3-bit `object type' used for sealing capabilities (see \cref{sec:sealing})
     \item[E] a 4-bit exponent used for the bounds encoding (see \cref{sec:bounds})
-    \item[B] a 9-bit base used for the bounds encoding (see \cref{sec:bounds})
     \item[T] a 9-bit top used in the bounds encoding (see \cref{sec:bounds})
+    \item[B] a 9-bit base used for the bounds encoding (see \cref{sec:bounds})
     \item[a] the 32-bit address of the capability
   \end{description}
   \caption{\label{fig:capformat}Capability format}
