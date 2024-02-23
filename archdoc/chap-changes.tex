@@ -22,5 +22,8 @@
     If either of the two least significant bits of \MTCC{}.\caddress{} is set on write then they are cleared and the tag is cleared.
     This simplifies both ISA and hardware and avoids potential violations of capability monotonicity due to \asm{mtvec} and \asm{mepc} legalization.
     vectored interrupt mode is explicitly unsupported.
+    \item[\ghpr{38}] Fix reversed T and B fields in the capability encoding diagram (\cref{fig:capformat}).
+    There was an inconsistency between the Sail implementation and this document about the locations of the T and B fields in the capability encoding.
+    The document had the T and B fields swapped compared to the Sail (which matches the Ibex implementation) so we treat the Sail as canonical and update the document to match i.e. B is in bits 0 to 8 of the metadata word and T is in 9 to 17.
     \end{description}
 \end{description}
