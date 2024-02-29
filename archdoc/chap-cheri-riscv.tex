@@ -329,8 +329,11 @@ Untagged or sealed capabilities that are loaded are unaffected and retain their 
 \item[LG] If \cappermILG is not set then any tagged capabilities loaded via this capability will have LG and GL cleared.
 Thus, if LG and GL are cleared before delegating a capability then it, and any capability loaded via it (including via indirection), may be stored only via capabilities with \cappermSLC.
 This limits the ability of the delegee to retain capabilities to a delegated data structure or part thereof, making it easier to later revoke access to the delegated data structure.
-Note that GL and LG are cleared even on sealed capabilities that are loaded, making this an exception to the immutability of sealed capabilities.
-This differs from the behavior of LM on sealed capabilities. Untagged capabilities are unaffected.
+In the case of loaded sealed capabilities, GL, but not LG, is cleared, making this an exception to the immutability of sealed capabilities.
+Thus, a sealed capability reached via an authority lacking LG may be stored only through a \cappermSLC authority,
+as may its unsealed form, but the further authority borne by the sealed capability once unsealed is unaltered.
+This differs from the behavior of LM on sealed capabilities.
+Untagged capabilities are unaffected.
 \item[MC] If \cappermMC is set then the load and store permissions for this capability are modified to enable capability loads (\cappermLC) and / or stores (\cappermSC).
 The \insnriscvref{CLC} instruction logically ANDs the tag of the loaded capability with MC from the capability base operand, so only capabilities with MC and LD set can be used to load tagged capabilities.
 The \insnriscvref{CSC} instruction raises an exception if the stored capability has the tag set and the capability base operand lacks either MC or SD permission, so only capabilities with MC and SD can be used to store tagged capabilities.
