@@ -25,5 +25,17 @@
     \item[\ghpr{38}] Fix reversed T and B fields in the capability encoding diagram (\cref{fig:capformat}).
     There was an inconsistency between the Sail implementation and this document about the locations of the T and B fields in the capability encoding.
     The document had the T and B fields swapped compared to the Sail (which matches the Ibex implementation) so we treat the Sail as canonical and update the document to match i.e. B is in bits 0 to 8 of the metadata word and T is in 9 to 17.
+    \item[\ghpr{44}] Fix two long-standing nits regarding transitive permissions:
+      \begin{description}
+        \item[\ghissue{13}] If we clear the tag on a loaded capability because the authority lacks \cappermMC,
+          we do not also attenuate the loaded capability's permissions as per \cappermILG and \cappermLM,
+          as the result is an untagged bit pattern anyway.
+          The old behavior may have been confusing to humans or debuggers.
+        \item[\ghissue{14}] When loading a sealed capability through an authority lacking \cappermILG,
+          the loaded capability will lack \cappermG but will retain \cappermILG if present under seal.
+          This is more in line with our handling of \cappermLM, which does not modify sealed capabilities.
+          Software accepting sealed capabilities must be prepared to recieve local (that is, \cappermG-lacking) variants,
+          even if none were ever explicitly constructed.
+      \end{description}
     \end{description}
 \end{description}
