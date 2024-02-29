@@ -798,6 +798,9 @@ function clause execute LoadCapImm(cd, cs1, imm) = {
       match c {
         MemValue(v) => {
           var cr = v;
+          if ptw_info.ptw_lc == PTW_LC_CLEAR  | not(auth_val.permit_load_store_cap) then {
+            cr.tag = false;
+          };
           if cr.tag & not(auth_val.permit_load_global) then {
             /* Without load-global authority, the loaded cap is always local */
             cr.global = false;
@@ -824,9 +827,6 @@ function clause execute LoadCapImm(cd, cs1, imm) = {
              */
             cr.permit_store = false;
             cr.permit_load_mutable = false;
-          };
-          if ptw_info.ptw_lc == PTW_LC_CLEAR  | not(auth_val.permit_load_store_cap) then {
-            cr.tag = false;
           };
           /* Sealing capabilities are excluded from revocation */
           let isSealingCap = cr.permit_seal | cr.permit_unseal | cr.perm_user0;
