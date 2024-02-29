@@ -799,10 +799,29 @@ function clause execute LoadCapImm(cd, cs1, imm) = {
         MemValue(v) => {
           var cr = v;
           if cr.tag & not(auth_val.permit_load_global) then {
+            /* Without load-global authority, the loaded cap is always local */
             cr.global = false;
-            cr.permit_load_global = false;
+            if not(isCapSealed(cr)) then {
+              /*
+               * Loading an unsealed capability without load global authority
+               * results in attenuation of the loaded capability's permission,
+               * transitively weakening the view through said authority.
+               *
+               * But sealing stops this transitivity.  Even if the authority
+               * lacks load global permission, a loaded sealed cap retains its
+               * load global permission, as it requires separate unsealing
+               * authority to exercise.
+               */
+              cr.permit_load_global = false;
+            }
           };
           if cr.tag & not(auth_val.permit_load_mutable) & not(isCapSealed(cr)) then {
+            /*
+             * Loading an unsealed capability without load mutable authority
+             * also results in attenuated permissions.  As above, sealing stops
+             * transitivity, but also the loaded sealed capability retains its
+             * store permission.
+             */
             cr.permit_store = false;
             cr.permit_load_mutable = false;
           };
