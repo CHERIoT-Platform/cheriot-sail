@@ -55,7 +55,7 @@ We may gloss over subtle distinctions and conflate the terms ``capability,'' ``p
 
 A \defn{compartment} is a collection of code, data, and capabilities that serves as an invocable security context.
 Compartments statically export \keyword{entry-points}, which may be statically imported by other compartments or passed as opaque \keyword{cross-compartment function pointers}.
-A compartment they (statically or dynamically) imports an entry point may then invoke it to perform a \keyword{cross-compartment call}.
+A compartment that (statically or dynamically) imports an entry point may then invoke it to perform a \keyword{cross-compartment call}.
 Such calls are synchronous and transition the calling thread from one compartment to another.
 The thread's stack is used, with appropriate bounds adjustment, in both the caller and callee compartment.
 
@@ -106,7 +106,7 @@ As such, even a completely compromised memory allocator can violate safety prope
 
 Allocations on a thread's stack are bounded by CHERI capabilities -- the compiler generates instructions to derive these capabilities from the stack capability -- but are not guaranteed to be temporally safe.
 
-However, \cherimcuisa{} and \cherimcuos{} have mechanisms to ensure that capabilities to stack allocations can not be stored anywhere other than on the stack to which they point (which may include address-taken allocations on the caller's portion of the stack).
+However, the \cherimcuisa{} and \cherimcuos{} have mechanisms to ensure that capabilities to stack allocations can not be stored anywhere other than on the stack to which they point (which may include address-taken allocations on the caller's portion of the stack).
 In practice, this means that violating stack temporal safety is very difficult: stack-derived capabilities cannot be stored onto the heap or into a global (it will deliver a trap).
 Therefore, the only way of having a stack pointer outlive the allocation is to store it through another stack-derived pointer that points to a higher frame or return it directly in a register.
 
@@ -117,14 +117,14 @@ Therefore, the only way of having a stack pointer outlive the allocation is to s
 \subsection{Cross-compartment stack memory safety}
 
 During a cross-compartment call, the thread and its stack transition security contexts.
-The stack bounds are restricted so that the callee has no access to the caller’s stack, except via capabilities that are explicitly passed as arguments.
+The stack bounds are restricted so that the callee has no access to the caller's stack, except via capabilities that are explicitly passed as arguments.
 This suffix of stack memory accessible to the callee is zeroed both on call and on return, which prevents any information leak from uninitialized memory.
 The implicit stack pointer and stack-derived arguments provided by the caller are the only pointers that are both held by a compartment and capable of storing other stack-derived pointers.
 
 \subsubsection{Lexically-Scoped Delegation}
 
-\cherimcuisa{}'s capability permission scheme allows software to derive variants of capabilities that can be stored only to stack memory.
-Additionally, \cherimcuisa{} can impose this derivation \emph{transitively} per capability: any capability loaded via such a capability becomes another such and, so, will impose the same on those loaded through it, and so on.
+The \cherimcuisa{}'s capability permission scheme allows software to derive variants of capabilities that can be stored only to stack memory.
+Additionally, the \cherimcuisa{} can impose this derivation \emph{transitively} per capability: any capability loaded via such a capability becomes another such and, so, will impose the same on those loaded through it, and so on.
 
 These two mechanisms allow for \defn{lexically-scoped delegation}: a calling compartment may, for any capability it holds, construct a variant that can only be stored to the stack and can load only capabilities that can be stored only to the stack.
 Passing this derived capability to the callee ensures that the callee compartment cannot capture either the passed capability or any loaded through it in memory not visible to (and mutable by) the caller after return.
@@ -135,7 +135,7 @@ Passing this derived capability to the callee ensures that the callee compartmen
 \subsection{Global memory safety}
 All objects with static storage duration are compartment-local and are visible to any thread executing within a compartment.
 Memory safety for globals is therefore advisory (untrusted code can simply access the global capability directly).
-The compiler will insert bound for any address-taken global.
+The compiler will insert bounds for any address-taken global.
 Immutable objects with static storage duration are derived from \PCC{} (with the execute permission removed) and so cannot be written to.
 
 \subsection{Higher-level security properties}

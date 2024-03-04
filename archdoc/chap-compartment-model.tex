@@ -78,7 +78,7 @@ In \cherimcuos{}, only three types of memory have the store-local permission:
 \end{description}
 
 Of these, normal compartment code has access only to the stack.
-The latter two are a single allocation that is reached via a SCR.
+The latter two are a single allocation that is reached via an SCR.
 The switcher is the only code that runs (after the loader has exited) with the rights to access this SCR.
 Threads' register files and stacks dynamically define a set of reachable objects.
 \nwfnote{That last sentence is a bit of a non-sequitur for this paragraph.}
@@ -147,7 +147,7 @@ For example, a compartment may derive a read-only (no store permission) capabili
 \section{Context switches enforce thread isolation}
 
 Context switches happen as a result of an interrupt (including synchronous aborts / exceptions).
-The context switcher code saves the register file into a save area pointed to by a SCR.
+The context switcher code saves the register file into a save area pointed to by an SCR.
 The register save area and the trusted stack are both reached by the same SCR and the two switchers (thread and compartment) are the only code in the system that runs with permission to access this register after the loader has finished.
 
 The context switch routine (part of the switcher's approximately 300 instructions) is the only code that is able to violate thread isolation.
