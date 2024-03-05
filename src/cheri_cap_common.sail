@@ -81,7 +81,7 @@ let  cap_mantissa_width = sizeof(cap_mantissa_width)
 type cap_E_width : Int = 5
 let  cap_E_width = sizeof(cap_E_width)
 /*! Width of compressed exponent field in bits */
-type cap_cE_width : Int = 4
+type cap_cE_width : Int = 5
 type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 /*! Cap length width is one larger than address space width in order to 
@@ -101,7 +101,7 @@ struct EncCapability = {
   cperms     : bits(cap_cperms_width),
   cotype     : bits(cap_cotype_width),
   cE         : bits(cap_cE_width),
-  T          : bits(cap_mantissa_width),
+  T          : bits(cap_mantissa_width - 1),
   B          : bits(cap_mantissa_width),
   address    : bits(cap_addr_width)
 }
@@ -110,8 +110,8 @@ function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
   reserved   = c[63..63],
   cperms     = c[62..57],
   cotype     = c[56..54],
-  cE         = c[53..50],
-  T          = c[49..41],
+  cE         = c[53..49],
+  T          = c[48..41],
   B          = c[40..32],
   address    = c[31..0]
 }
@@ -301,9 +301,20 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
   /* The otype of executable caps is mapped to 1-7 and others to 9-15. Unsealed
     is always 0. */
   let otype = (if isExe | c.cotype == 0b000 then 0b0 else 0b1) @ c.cotype;
-  /* The 4-bit exponent is expanded to 5 bits, using 0xf to encode a cap_max_E
-    value that enables representing the entire address space. */
-  let E = if c.cE == 0xf then cap_max_E_bits else zero_extend(c.cE);
+
+  let denorm = c.cE == 0b00000;
+  let E = if denorm then 0b00000 else c.cE ^ 0b11111;
+  // Implicit top bit of length
+  let Ltop = if denorm then 0b0 else 0b1;
+  // Carry-in for calculation of implicit top-bit of T:
+  //  must be one if low bits of T are less than those of B
+  // i.e. if there was an overflow when adding those bits of length to base.
+  let Tcin = if c.T <_u truncate(c.B, cap_mantissa_width - 1) then 0b1 else 0b0;
+  let Btop = truncateLSB(c.B, 1);
+  // Calculate the implicit top bit of T
+  let Ttop = Btop ^ Tcin ^ Ltop;
+  let T = Ttop @ c.T;
+
   return struct {
     tag                    = t,
     perm_user0             = perm_user0            ,
@@ -321,7 +332,7 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
     reserved               = c.reserved,
     E                      = E,
     B                      = c.B,
-    T                      = c.T,
+    T                      = T,
     otype                  = otype,
     address                = c.address
   }
@@ -376,12 +387,17 @@ function capToEncCap(cap) : Capability -> EncCapability = {
     cperms[1] = bool_to_bit(cap.permit_seal);
     cperms[0] = bool_to_bit(cap.permit_unseal);
   };
+
+  let L = cap.T - cap.B;
+  let denorm = (cap.E == zeros()) & (truncateLSB(L, 1) == 0b0);
+  let encE = if denorm then 0b00000 else (cap.E ^ 0b11111);
+
   return struct {
     cperms = cperms,
     reserved = cap.reserved,
     cotype = cap.otype[2..0], /* truncate otype when compressing */
-    cE = if cap.E == cap_max_E_bits then 0xf else cap.E[3..0],
-    T = cap.T,
+    cE = encE,
+    T = truncate(cap.T, cap_mantissa_width - 1),
     B = cap.B,
     address = cap.address
   };
@@ -397,6 +413,7 @@ let null_cap_bits : CapBits = capToBits(null_cap)
  */
 function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = {
   let E = unsigned(c.E);
+
   let a : CapAddrBits = c.address;
   /* Calculate corrections for upper bits of base and top based on relative 
      positions of base, top and address with respect to 
@@ -445,10 +462,9 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
   /* Compute new top, note extra bit in case of overflow */
   let top : CapLenBits = ext_base + (0b0 @ length);
   /* Find smallest exponent that can represent required length.
+   * The actual range is 0..(cap_max_E-1), but a conservative approximation is helpful
    */
-  let e : range(0, 23) = 23 - count_leading_zeros(truncateLSB(length, 23));
-  /* Saturate e at max if it exceeds representable 4-bit value. */
-  var e_sat : range(0,  cap_max_E) = if e > 14 then cap_max_E else e;
+  var e_sat : range(0, cap_max_E) = 23 - count_leading_zeros(truncateLSB(length, 23));
   /* Extract B and T bits from base and top, include a spare bit so that we can
    check for length overflow below. */
   var B = truncate(base >> e_sat, cap_mantissa_width + 1);
@@ -464,13 +480,9 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
   /* If the resulting length is greater than maximum possible, we must
      increment e by one and try again. This time overflow is impossible. */
   if  0b0111111111 <_u (T - B) then {
-    if e_sat < 14 then {
-      /* increment e_sat by one, note that min is only necessary to satisfy the
-         Sail type checker */
-      e_sat = min(e_sat + 1, cap_max_E);
-    } else {
-      e_sat = cap_max_E;
-    };
+    /* increment e_sat by one, note that min is only necessary to satisfy the
+        Sail type checker */
+    e_sat = min(e_sat + 1, cap_max_E);
     /* Recompute B, T, mask etc for new e_sat */
     B = truncate(base >> e_sat, cap_mantissa_width + 1);
     T = truncate(top >> e_sat, cap_mantissa_width + 1);
@@ -481,8 +493,7 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
     };
   };
   /* Return cap with new bounds */
-  let encE = to_bits(cap_E_width, e_sat);
-  let newCap = {cap with address=base, E=encE, B=truncate(B, cap_mantissa_width), T=truncate(T, cap_mantissa_width)};
+  let newCap = {cap with address=base, E=to_bits(cap_E_width, e_sat), B=truncate(B, cap_mantissa_width), T=truncate(T, cap_mantissa_width)};
   lostSignificantBase = unsigned(ext_base & maskLo) != 0;
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
@@ -509,9 +520,7 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
   /* Compute new top, note extra bit in case of overflow */
   let top : CapLenBits = ext_base + (0b0 @ length);
   /* Find smallest exponent that can represent required length. */
-  let e : range(0, 23) = 23 - count_leading_zeros(truncateLSB(length, 23));
-  /* Saturate e at max if it exceeds representable 4-bit value. */
-  var e_sat : range(0,  cap_max_E) = if e > 14 then cap_max_E else e;
+  var e_sat : range(0, 23) = 23 - count_leading_zeros(truncateLSB(length, 23));
   /* What is the required alignment of base? */
   let e_b = count_trailing_zeros(base);
   /* Extract B and T for initial e_sat */
@@ -520,7 +529,7 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
   if e_sat > e_b then {
     /* base unrepresentable using chosen e -- chose a smaller one and make a maximum length capability for that e */
     /* e_b will allow us to align the base but if 14 < e_b < cap_map_E we have to round down to 14 */
-    e_sat = if (14 < e_b) & (e_b < cap_max_E) then 14 else e_b;
+    e_sat = e_b;
     /* Extract B for new e_sat */
     B = truncate(base >> e_sat, cap_mantissa_width);
     /* This will make a max length cap for given E, B */
@@ -824,8 +833,7 @@ val getRepresentableAlignmentMask: xlenbits -> xlenbits
  */
 function getRepresentableAlignmentMask(len) = {
   let (exact, c) = setCapBounds(root_cap_mem, to_bits(sizeof(xlen), 0), len);
-  var e = unsigned(c.E);
-  ones(sizeof(xlen)) << e
+  ones(sizeof(xlen)) << unsigned(c.E);
 }
 
 /*!

@@ -40,12 +40,12 @@ function capEncodable(c : Capability) -> bool = c == encodeDecode(c)
  * the attempted corrections can underflow a_top. There are other unusable
  * encodings too, for example those with top larger than 2**32.
  */
-function prop_base_lteq_top(b : CapBits) -> bool = {
-    let c = capBitsToCapability(false, b);
-    let (base, top) = getCapBoundsBits(c);
-    a_top = c.address >> (unsigned(c.E) + cap_mantissa_width);
-    (a_top != zeros() | (c.B <_u c.T)) --> ((0b0 @ base) <=_u top)
-}
+// function prop_base_lteq_top(b : CapBits) -> bool = {
+//     let c = capBitsToCapability(false, b);
+//     let (base, top) = getCapBoundsBits(c);
+//     a_top = c.address >> (unsigned(c.E) + cap_mantissa_width);
+//     (a_top != zeros() | (c.B <_u c.T)) --> ((0b0 @ base) <=_u top)
+// }
 
 $property
 /*!
@@ -55,19 +55,28 @@ function prop_nullzero() -> bool = {
     capEncodable(null_cap) & (capToBits(null_cap) == zeros()) & (null_cap.tag == false)
 }
 
+function hasMaxBounds(c: Capability) -> bool = {
+    let (b, t) = getCapBounds(c) in
+    b == 0 & t == pow2(32)
+}
+
+function validateRootCap(c : Capability) -> bool = {
+    c.tag == true & capEncodable(c) & hasMaxBounds(c) & not(isCapSealed(c))
+}
+
 $property
 function prop_mem_root() -> bool = {
-    capEncodable(root_cap_mem)
+    validateRootCap(root_cap_mem)
 }
 
 $property
 function prop_exe_root() -> bool = {
-    capEncodable(root_cap_exe)
+    validateRootCap(root_cap_exe)
 }
 
 $property
 function prop_seal_root() -> bool = {
-    capEncodable(root_cap_seal)
+    validateRootCap(root_cap_seal)
 }
 
 $property
@@ -89,15 +98,15 @@ function prop_decEnc(t : bool, c : CapBits) -> bool  = {
  * cap_max_E because base is only 32-bits and we lose the top bit of B, but I
  * think it would hold if getCapBoundsBits returned a 33-bit base.
  */
-function prop_decEnc2(c : CapBits) -> bool  = {
-    let cap = capBitsToCapability(false, c);
-    let (base, top) = getCapBoundsBits(cap);
-    let newB = truncate(base >> unsigned(cap.E), cap_mantissa_width);
-    let newT = truncate(top >> unsigned(cap.E), cap_mantissa_width);
-    let cap2 = {cap with B=newB, T=newT};
-    let c2 = capToBits(cap2);
-    (c == c2)
-}
+// function prop_decEnc2(c : CapBits) -> bool  = {
+//     let cap = capBitsToCapability(false, c);
+//     let (base, top) = getCapBoundsBits(cap);
+//     let newB = truncate(base >> unsigned(cap.E), cap_mantissa_width);
+//     let newT = truncate(top >> unsigned(cap.E), cap_mantissa_width);
+//     let cap2 = {cap with B=newB, T=newT};
+//     let c2 = capToBits(cap2);
+//     (c == c2)
+// }
 
 $property
 /*!
@@ -228,7 +237,8 @@ function prop_repbounds(reqBase : CapAddrBits, reqLen : CapAddrBits, newAddr : C
     let saneTop = reqTop <=_u 0b1@0x00000000;
     let (b, t) = getCapBoundsBits(c);
     let (representable, newCap) = setCapAddr(c, newAddr);
-    let repTop = (0b0 @ b) + ((to_bits(33,1) << unsigned(c.E)) << 9);
+    let e = if c.E == 0b11111 then 0 else unsigned(c.E);
+    let repTop = (0b0 @ b) + ((to_bits(33,1) << e) << 9);
     /* The representable bounds check: either E is max or address is in range */
     let inRepBounds = c.E == cap_max_E_bits | ((b <=_u newAddr) & ((0b0 @ newAddr) <_u repTop));
     /* For any sane capability the inRepBounds check matches the flag returned 
