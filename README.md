@@ -35,6 +35,16 @@ make csim
 
 This will produce an executable in `c_emulator/cheriot_sim` that can be used to run ELF files produced by the CHERIoT compiler.
 
+To build the documentation you must have `biber`, `latexmk` and `pdflatex` and have setup your `opam` environment as above. Then follow the following commands:
+
+```sh
+pushd archdoc
+make
+popd
+```
+
+This will create a file located at `archdoc/cheriot-architecture.pdf`.
+
 ## Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
