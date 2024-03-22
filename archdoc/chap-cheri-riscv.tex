@@ -38,7 +38,8 @@ Abstractly, capabilities have the following fields:
   \item[top] The 32-bit exclusive upper bound.
   \item[perms] The capability permissions (\cref{sec:perms}).
   \item[otype] Used for sealing (\cref{sec:sealing}).
-  \item[tag] A single bit indicating valid or invalid. Capabilities with this bit set are called \emph{tagged}.
+  \item[tag] A single bit indicating valid or invalid.
+  Capabilities with this bit set are called \emph{tagged}.
 \end{description}
 The actual capability encoding is compressed as described in \cref{sec:capenc}.
 Instructions that read integer operands use only the lower 32-bits (the capability \caddress{}).
@@ -180,7 +181,7 @@ Attempting to access the legacy RISC-V CSR via the \asm{CSR*} instructions resul
 The special meaning associated with the CSR applies to the SCR's \caddress{} field and the value written is validated and legalized as follows:
 
 \begin{description}
-  \item[\MTCC{}] Only direct mode is suppported (not vectored). 
+  \item[\MTCC{}] Only direct mode is supported (not vectored).
   If either of the two least significant bits of the \caddress{} is set then they are cleared and the tag of the value written is cleared.
   If the capability being written is sealed or does not have \cappermX{} then its tag is cleared.
   \item[\MEPCC{}]
@@ -188,7 +189,7 @@ The special meaning associated with the CSR applies to the SCR's \caddress{} fie
   If the capability being written is sealed or does not have \cappermX{} then its tag is cleared.
 \end{description}
 
-These rules avoid potential problems due to legalisation where capabilities might become unrepresentable or sealed capabilties modified.
+These rules avoid potential problems due to legalisation where capabilities might become unrepresentable or sealed capabilities modified.
 
 \section{Changes to exception handling}
 
@@ -199,7 +200,7 @@ If the exception is a bounds violation on instruction fetch then the tag on \MEP
 \MTCC{} is then installed in \PCC{} and execution proceeds from \MTCC.\caddress{}.
 When executing an \asm{MRET} instruction \MEPCC{} is moved to \PCC{} and execution proceeds from \MEPCC{}.\caddress{}.
 
-In either case if the new \PCC{} is untagged (due to an untagged \MEPCC{} or \MTCC{}) an CHERI tag violation exception is raised for the new \PC{}.
+In either case if the new \PCC{} is untagged (due to an untagged \MEPCC{} or \MTCC{}) a CHERI tag violation exception is raised for the new \PC{}.
 In the case of an untagged \MTCC{} this will result in an unrecoverable exception loop.
 
 A new RISC-V exception code, 0x1C, is used for all CHERI specific exceptions, with a more detailed CHERI cause placed in \mtval{} as shown in \cref{fig-cheri-tval}.
@@ -222,10 +223,9 @@ A new RISC-V exception code, 0x1C, is used for all CHERI specific exceptions, wi
 
 \begin{description}
 \item [cause] The \texttt{cause} field reports the capability exception code as described in ~\cref{table:capability-cause}.
-\item [cap idx] The \texttt{cap idx} field reports the index of the capability register that caused the last exception.  When
-the \texttt{S} bit is zero, it is the number of the general purpose register that caused the capability fault.
-Otherwise, it is the number of a special purpose capability register given in
-\cref{tab:risc-v-special-capability-registers} or zero if the fault was caused by \PCC{}.
+\item [cap idx] The \texttt{cap idx} field reports the index of the capability register that caused the last exception.
+When the \texttt{S} bit is zero, it is the number of the general purpose register that caused the capability fault.
+Otherwise, it is the number of a special purpose capability register given in \cref{tab:risc-v-special-capability-registers} or zero if the fault was caused by \PCC{}.
 \end{description}
 
 \begin{table}
@@ -280,7 +280,8 @@ Additionally, we use major opcode 0x7b to encode \insnriscvref{AUICGP}, which is
     \bitbox[lrb]{32}{$a$'32}
   \end{bytefield}
   \begin{description}
-    \item[R] a reserved bit. This is zero in the root capabilities (and hence all tagged capabilities), but may be set if untagged data is loaded into a register.
+    \item[R] a reserved bit.
+    This is zero in the root capabilities (and hence all tagged capabilities), but may be set if untagged data is loaded into a register.
     In this case its value must be preserved.
     This is important because memory copies are performed with capability load and store instructions in order to preserve the tag on any capabilities present, meaning these instructions must also faithfully copy arbitrary untagged data.
     \item[p] a 6-bit compressed permissions field (see \cref{sec:perms})
@@ -313,15 +314,20 @@ Additionally, we use major opcode 0x7b to encode \insnriscvref{AUICGP}, which is
   \end{bytefield}
   \caption{\label{fig:archperms}Architectural permissions}
 \end{center}\end{figure}
-\cref{fig:archperms} shows the architectural permissions as used by \insnriscvref{CGetPerm} and \insnriscvref{CAndPerm}. They have the following meanings:
+\cref{fig:archperms} shows the architectural permissions as used by \insnriscvref{CGetPerm} and \insnriscvref{CAndPerm}.
+They have the following meanings:
 \begin{description}
 \item[EX] If \cappermX is set then this capability is executable and can be used as the target of \insnriscvref{CJALR} and in other contexts requiring an executable capability, such as \asm{TCC}.
-\item[SR] \cappermASR{} may be set on executable capabilities. When set in \PCC{} access to all CSRs and SCRs is permitted, otherwise attempts to access restricted registers or execute an \asm{MRET} results in an exception (See \cref{sec:asr}).
+\item[SR] \cappermASR{} may be set on executable capabilities.
+When set in \PCC{} access to all CSRs and SCRs is permitted, otherwise attempts to access restricted registers or execute an \asm{MRET} results in an exception (See \cref{sec:asr}).
 \item[SE] If \cappermSeal is set then this capability may be used as the authority for \insnriscvref{CSeal}.
 \item[US] If \cappermUnseal is set then this capability may be used as the authority for \insnriscvref{CUnseal}.
-\item[U0] \cappermUZ is a user permission on capabilities with the sealing format. It has no special meaning to hardware but behaves like other permissions in that it may be cleared by \insnriscvref{CAndPerm} and cannot be set after being cleared. It is intended to be used as a software defined permission.
+\item[U0] \cappermUZ is a user permission on capabilities with the sealing format.
+It has no special meaning to hardware but behaves like other permissions in that it may be cleared by \insnriscvref{CAndPerm} and cannot be set after being cleared.
+It is intended to be used as a software defined permission.
 \item[GL] If \cappermG is set then this capability is global and can be stored anywhere, otherwise it is local and may be stored only via capabilities with the \cappermSLC permission.
-\item[SL] If \cappermSLC is set (along with \cappermS and \cappermMC) then any capability may be stored via this capability. Otherwise, attempting to store a local capability (with GL unset) will store the capability with the tag cleared.
+\item[SL] If \cappermSLC is set (along with \cappermS and \cappermMC) then any capability may be stored via this capability.
+Otherwise, attempting to store a local capability (with GL unset) will store the capability with the tag cleared.
 \item[LM] If \cappermLM is not set then any tagged capabilities loaded via this capability will have SD and LM cleared.
 Thus, if SD and LM are cleared on a capability then it, and any capability loaded via it (including via indirection), will be read-only.
 This is useful for delegating a read-only pointer to a data structure, for example to enforce a language level transitive \asm{const}.
@@ -346,8 +352,8 @@ Some combinations of permissions are not very useful (e.g. \cappermASR but not \
 Each format has some fixed bits (shown as 0s or 1s) that unambiguously identify the format.
 A given format unconditionally grants some number of `implicit' permissions and the non-fixed bits encode the presence or absence of the permissions indicated by the two-letter abbreviation.
 
-For example the `cap-read-write' format has bits 3 and 4 of the permissions field set to one. Capabilities with this format implicitly have \cappermL, \cappermMC and \cappermS while bits 0, 1, 2 and 5 encode
-\cappermILG, \cappermLM, \cappermSLC and \cappermG respectively (the permission is granted if the bit set to one).
+For example the `cap-read-write' format has bits 3 and 4 of the permissions field set to one.
+Capabilities with this format implicitly have \cappermL, \cappermMC and \cappermS while bits 0, 1, 2 and 5 encode \cappermILG, \cappermLM, \cappermSLC and \cappermG respectively (the permission is granted if the bit set to one).
 The logic of this is that each format need only encode permissions that make sense given the set of implicitly present permissions, giving a dense encoding of useful permission encodings.
 The format used to represent a capability may change if permissions are cleared by \insnriscvref{CAndPerm} or \insnriscvref{CLC}.
 \cref{fig:perms5clustered} shows a graphical representation of the possible permissions combinations and possible transitions between them.
@@ -383,13 +389,16 @@ The format used to represent a capability may change if permissions are cleared 
 \end{center}\end{figure}
 
 One consequence of this encoding is that is not possible to have a single capability with all permissions.
-Instead there are three \emph{capability roots} corresponding to the three nodes with no edges leading to them in \cref{fig:perms5clustered}. We label these as follows:
+Instead there are three \emph{capability roots} corresponding to the three nodes with no edges leading to them in \cref{fig:perms5clustered}.
+We label these as follows:
 
 \begin{description}
-  \item[\caprootM] The memory root, with \cappermG, \cappermL, \cappermS, \cappermMC, \cappermSLC, \cappermILG and \cappermLM. The bounds are the entire address space.
-  \item[\caprootX] The executable root, with \cappermG, \cappermX, \cappermL, \cappermLC, \cappermILG, \cappermLM and \cappermASR. The bounds are the entire address space.
-  \item[\caprootS] the sealing root, with \cappermG, \cappermSeal, \cappermUnseal, and \cappermUZ. 
-  The bounds are the entire address space even though only a limited set of \cotype{} values can be used with \insnriscvref{CSeal}. 
+  \item[\caprootM] The memory root, with \cappermG, \cappermL, \cappermS, \cappermMC, \cappermSLC, \cappermILG and \cappermLM.
+  The bounds are the entire address space.
+  \item[\caprootX] The executable root, with \cappermG, \cappermX, \cappermL, \cappermLC, \cappermILG, \cappermLM and \cappermASR.
+  The bounds are the entire address space.
+  \item[\caprootS] the sealing root, with \cappermG, \cappermSeal, \cappermUnseal, and \cappermUZ.
+  The bounds are the entire address space even though only a limited set of \cotype{} values can be used with \insnriscvref{CSeal}.
   This allows sealed, sealing-format capabilities with an address outside the range of valid \cotype{}s to be used as unforgeable tokens by software.
 \end{description}
 
@@ -406,7 +415,8 @@ See \cref{chap:permissions} for a description of the constraints on useful permi
         \includegraphics[width=\hsize]{misc/perms/perms5_clustered.pdf}
         \caption{\label{fig:perms5clustered}Graph of allowed permission combinations, grouped by encoding format and ordered by inclusion.
         Edges are labelled with the permission that is dropped by that transition.
-        Edges implied by transitivity are omitted. \cappermG is omitted because it is entirely orthogonal.}
+        Edges implied by transitivity are omitted.
+        \cappermG is omitted because it is entirely orthogonal.}
     \end{figure}
 \end{landscape}
 \restoregeometry
@@ -483,7 +493,7 @@ top, $t =$     & $a_\text{top}+c_\text{t}$   & $T $ & $0$ \\ \cline{2-4}
 }
 \end{center}
 
-where the top bits of the address are `corrected' according to the following formulae:
+Where the top bits of the address are `corrected' according to the following formulae:
 
 \begin{center}
 \begin{tabular}{r c l p{1em} r c l}
@@ -557,7 +567,7 @@ Note that the decoded top is actually a 33-bit value to accommodate this.
 \subsection{Set bounds operation}
 The \insnriscvref{CSetBounds} instruction must select values for $E$, $B$, and $T$ that encode a requested range defined by a given base, $b$, and length, $l$.
 In the case that the requested range is not precisely representable \cbase{} is rounded down and \ctop{} up to multiples of $2^e$, where $e$ is the chosen exponent.
-For maximum bounds precision, we desire the the smallest $e$ that can represent the requested region.
+For maximum bounds precision, we desire the smallest $e$ that can represent the requested region.
 From the encoding we can observe that the largest encodable length for a given $e$ is given by $2^e \times (2^9 - 1)$.
 Therefore we require a solution to the inequality:
 \[
