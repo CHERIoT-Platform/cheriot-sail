@@ -206,9 +206,11 @@ function ext_check_phys_mem_read (access_type, paddr, size, aquire, release, res
 
 function ext_check_phys_mem_write(write_kind, paddr, size, data, metadata) = {
   if ((paddr >=_u MSHWMB) & (paddr <_u MSHWM)) then {
+    /* align down MSHWM to 16 bytes */
+    paddr16 = legalize_mshwm(paddr);
     if get_config_print_reg()
-    then print_reg("MSHWM <- " ^ BitStr(paddr));
-    MSHWM = paddr;
+    then print_reg("MSHWM <- " ^ BitStr(paddr16));
+    MSHWM = paddr16;
   };
   Ext_PhysAddr_OK()
 }

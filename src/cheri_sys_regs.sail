@@ -91,6 +91,14 @@ function legalize_ccsr(c : ccsr, v : xlenbits) -> ccsr = {
   c
 }
 
+/*!
+ * Legalize stack high water mark by rounding
+ * down to 16-byte aligned value.
+ */
+function legalize_mshwm(v : xlenbits) -> xlenbits = {
+  [v with 3..0=0x0]
+}
+
 // XXX these are currently disabled due to sail bug when compiling C
 //mapping clause csr_name_map = 0x8c0 <-> "uccsr"
 //mapping clause csr_name_map = 0x9c0 <-> "sccsr"
@@ -107,8 +115,8 @@ function clause ext_write_CSR (0x8C0, value) = { uccsr = legalize_ccsr(uccsr, va
 function clause ext_write_CSR (0x9C0, value) = { sccsr = legalize_ccsr(sccsr, value); Some(sccsr.bits()) }
 function clause ext_write_CSR (0xBC0, value) = { mccsr = legalize_ccsr(mccsr, value); Some(mccsr.bits()) }
 
-function clause ext_write_CSR (0xBC1, value) = { MSHWM  = value; Some(value) }
-function clause ext_write_CSR (0xBC2, value) = { MSHWMB = value; Some(value) }
+function clause ext_write_CSR (0xBC1, value) = { MSHWM  = legalize_mshwm(value); Some(MSHWM) }
+function clause ext_write_CSR (0xBC2, value) = { MSHWMB = legalize_mshwm(value); Some(MSHWMB) }
 
 function clause ext_is_CSR_defined (0x8C0, p) = haveUsrMode()  // uccsr
 function clause ext_is_CSR_defined (0x9C0, p) = haveSupMode() & (p == Machine | p == Supervisor) // sccsr
