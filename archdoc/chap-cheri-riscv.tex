@@ -712,3 +712,26 @@ As a result, \asm{C.ADDI16SP imm} is decoded into \asm{CIncAddr \$csp, \$csp, im
 The \cherimcuisa{} introduces changes to mappings between certain compressed and uncompressed instructions, but no changes to the encodings of compressed instructions themselves.
 This translates to minimum logic modifications when adding \cherimcuisa{} support to an existing RISC-V CPU.
 However, experiments in \cref{chap:c-changes} show that further code size reduction can be achieved by introducing changes in the encoding themselves, to accommodate RV32E and CHERI instructions.
+
+\section{Stack high water mark}
+\label{sec:shwm}
+
+The stack high water mark is a simple mechanism in \cherimcu{} to track stack use so that the RTOS switcher implementation can minimise the amount of stack zeroing during compartment calls.
+The mechanism uses two new integer CSRs: the stack high water mark, \mshwm{} (\asm{0xBC1}), and the stack high water mark base, \mshwmb{} (\asm{0xBC2}).
+These may be read and written using the \asm{CSRRW} instruction only if \PCC{} has \cappermASR{}, otherwise an attempt to do so will result in a Reserved Instruction exception.
+The four least significant bits of both registers are hardwired to zeros, making them 16-byte aligned.
+Any write with these bits set is legalised by rounding down.
+
+On every memory write the address of the write (the lowest byte written) is compared to \mshwm{} and \mshwmb{}.
+If the address is greater than or equal to \mshwmb{} and less than \mshwm{} then \mshwm{} is updated with the address of the write (rounded down to 16-byte alignment).
+Thus, if \mshwmb{} is set to the stack base (the lowest stack address) and \mshwm{} is initialised to the top of the stack, then \mshwm{} will track the lowest stack address written during execution.
+Since stacks grow downwards this indicates the maximum stack usage.
+The RTOS uses this to optimise stack zeroing by maintaining an invariant that the stack between \mshwmb{} and \mshwm{} for each thread is always zeroed.
+The stack high water mark CSRs are saved and restored during context switches along with other thread state.
+
+Note that only the address of the store is accounted for, not the width.
+This means that it is possible for an unaligned store with an address below \mshwmb{} to write bytes above \mshwmb{} without updating \mshwm{}.
+For example, a 4-byte store to \mshwmb{}$ - 1$ would write the bytes at \mshwmb{}$\dots{}$\mshwmb$+ 2$ but leave \mshwm{} unchanged, potentially breaking the RTOS's invariant.
+In practice this is not a problem as the RTOS will never issue a capability to untrusted code that crosses the stack base and would therefore premit such a write.%
+\footnote{In fact, no such capabilities should exist after the loader has run and initialised the thread data structures.}
+Given this, we choose not to unnecessarily complicate the hardware by requiring it to handle this corner case.

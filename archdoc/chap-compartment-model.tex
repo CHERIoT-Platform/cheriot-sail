@@ -127,6 +127,7 @@ Zeroing the stack seems expensive but recall that in embedded systems a 2 KiB st
 Our stacks are typically 1 KiB.
 With a 33-bit memory bus, we need 256 stores (in the worst case) to zero the whole thing.
 That's more expensive than a function call, but not vastly so.
+Additionally, the hardware provides a stack high water mark (see \cref{sec:shwm}) to minimise the amount of zeroing required.
 \nwfnote{Perhaps a footnote referencing \cite{huyghebaert:uninitcaps} as a possible architectural extension to speed this up?
 (Of note, if not proposed in the paper, csetbounds on an uninit cap could always give an initialized capability, which should limit the impact on the compiler?)}
 

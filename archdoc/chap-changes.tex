@@ -38,4 +38,6 @@
           even if none were ever explicitly constructed.
       \end{description}
     \end{description}
+    \item[\ghissue{15}, \ghpr{49}] Document stack high water mark.
+    Make it explicitly 16-byte aligned and point out the unaligned write spanning \mshwmb{} corner case, which we do not require hardware to handle.
 \end{description}
