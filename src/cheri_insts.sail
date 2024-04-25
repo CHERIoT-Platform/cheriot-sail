@@ -91,9 +91,9 @@ union clause ast = CJAL : (bits(21), regidx)
 /*!
  * Capability register *cd* is replaced with the next instruction's **PCC** and
  * sealed as a sentry. **PCC**.**address** is incremented by *imm*.
- *
+ * 
  * ## Exceptions
- *
+ * 
  * An exception is raised if:
  *   - **PCC**.**address** $+$ *imm* is unaligned, ignoring bit 0.
  * 
@@ -128,17 +128,18 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  * sealed as a sentry. **PCC** is replaced with the value of capability
  * register *cs1* with its **address** incremented by *imm* and the 0th bit of
  * its **address** set to 0, and is unsealed if it is a sentry.
- *
+ * 
  * ## Exceptions
- *
+ * 
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed and is not a sentry.
  *   - *cs1* is a sentry and *imm* $\ne$ 0.
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
- *
-  * ## Notes
+ * 
+ * ## Notes
+ * 
  *   - This instruction no longer attempts to check that the destination is
  *     within the bounds of PCC.  In that case an exception will be raised 
  *     raised by the subsequent instruction fetch.  EPCC will have the new
@@ -223,7 +224,7 @@ function clause execute (CGetBase(rd, cs1)) = {
 /*!
  * Integer register *rd* is set equal to the **high half** of capability
  * register *cs1*.
- *
+ * 
  * The bits returned here are of the **in-memory** form of the capability, which
  * may differ from microarchitectural forms in use within implementations.
  * That is, applying [CGetHigh] to a capability loaded
@@ -242,12 +243,11 @@ union clause ast = CSetHigh : (regidx, regidx, regidx)
  * Capability register *cd* comes to hold the capability from *cs1* with its
  * high bits replaced with the value in the integer register *rs2*.  The tag
  * of *cd* is cleared.
- *
+ * 
  * *rs2* holds the **in-memory** form of capability bits.  That is, this
  * instruction yields the same result as writing *cs1* out to memory,
  * overwriting the high word with *rs2*, and loading that capability-sized
  * granule into *cd*, although without the memory mutation side-effects.
- *
  */
 function clause execute (CSetHigh(cd, cs1, rs2)) = {
   let capVal = C(cs1);
@@ -261,9 +261,9 @@ function clause execute (CSetHigh(cd, cs1, rs2)) = {
 /*!
  * Integer register *rd* is set equal to the **top** field of capability
  * register *cs1*.
- *
+ * 
  * ## Notes
- *
+ * 
  * - Due to the compressed representation of capabilities, the actual top
  *   of capabilities can be $2^{[{xlen}][xlen]}$; [CGetTop] will return the
  *   maximum value of $2^{[{xlen}][xlen]}-1$ in this case.
@@ -282,9 +282,9 @@ function clause execute (CGetTop(rd, cs1)) = {
 /*!
  * Integer register *rd* is set equal to the **length** field of capability
  * register *cs1*.
- *
+ * 
  * ## Notes
- *
+ * 
  * - Due to the compressed representation of capabilities, the actual length
  *   of capabilities can be $2^{[{xlen}][xlen]}$; [CGetLen] will return the
  *   maximum value of $2^{[{xlen}][xlen]}-1$ in this case.
@@ -320,16 +320,16 @@ union clause ast = CSpecialRW : (regidx, screg, regidx)
 /*!
  * Capability register *cd* is set equal to special capability register *scr*,
  * and *scr* is set equal to capability register *cs1* if *cs1* is not **C0**.
- *
+ * 
  * ## Exceptions
- *
+ * 
  * An exception is raised if:
  *   - *scr* does not exist.
  *   - *scr* requires **Permit_Access_System_Registers** and that is not
  *     granted by **PCC**.**perms**.
- *
+ * 
  * ## Notes
- *
+ * 
  * - Writing **NULL** to a special capability register cannot be done with **C0**
  *   as that only performs a read. An alternative implementation would allocate
  *   a separate two-operand CSpecialR instruction and interpret *cs1* being
@@ -500,9 +500,9 @@ union clause ast = CSetBounds : (regidx, regidx, regidx)
  * capability covering the requested bounds. The **tag** field of the result
  * is cleared if the bounds of the result exceed the bounds of *cs1*, or if
  * *cs1* was sealed.
- *
+ * 
  * ## Notes
- *
+ * 
  *  - This Sail code actually does the bounds check on the *requested* bounds,
  *    not the bounds that result from [setCapBounds]. This is an important
  *    distinction because the resulting bounds may be larger than the requested
@@ -537,7 +537,7 @@ union clause ast = CSetBoundsImmediate : (regidx, regidx, bits(12))
  * up by the smallest amount needed to form a representable capability covering
  * the requested bounds. The **tag** field of the result is cleared if the
  * bounds of the result exceed the bounds of *cs1*, or if *cs1* was sealed.
- *
+ * 
  * ## Notes
  *  - The same caveat regarding the order of the bounds check applies as for
  *    [CSetBounds].
@@ -566,7 +566,7 @@ union clause ast = CSetBoundsExact : (regidx, regidx, regidx)
  * the smallest amount needed to form a representable capability covering the
  * requested bounds. The **tag** field of the result is cleared if the bounds
  * of the result exceed the bounds of *cs1*, or if *cs1* was sealed.
- *
+ * 
  * ## Notes
  *  - The same caveat regarding the order of the bounds check applies as for
  *    [CSetBounds].
@@ -637,12 +637,12 @@ union clause ast = CTestSubset : (regidx, regidx, regidx)
  * Integer register *rd* is set to 1 if the **tag** fields of capability
  * registers *cs1* and *cs2* are the same and the bounds and permissions of
  * *cs2* are a subset of those of *cs1*.
- *
+ * 
  * ## Notes
- *
+ * 
  * - The operand order for this instruction is reversed compared with the
  *   normal RISC-V comparison instructions, but this may be changed in future.
- *
+ * 
  * - The **otype** field is ignored for this instruction, but an alternative
  *   implementation might wish to consider capabilities with distinct
  *   **otype**s as unordered as is done for the **tag** field.
@@ -759,9 +759,9 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  * replaced with the capability located in memory at *cs1*.**address** $+$
  * *imm*, and if *cs1*.**perms** does not grant **Permit_Load_Capability** then
  * *cd*.**tag** is cleared.
- *
+ * 
  * ## Exceptions
- *
+ * 
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed.
@@ -849,9 +849,9 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
 /*!
  * The capability located in memory at *cs1*.**address** $+$ *imm* is
  * replaced with capability register *cs2*.
- *
+ * 
  * ## Exceptions
- *
+ * 
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed.
