@@ -13,7 +13,7 @@ jobs:
     - name: Init opam
       run: opam init -y
     - name: Install sail
-      run: opam pin -y sail 0.17.1
+      run: git clone -n https://github.com/rems-project/sail.git && cd sail && git checkout bb50f71dced35cd199554f0360a93b934e6443a1 && opam install -y .
     - name: Check out repository code
       uses: actions/checkout@HEAD
       with:
@@ -30,7 +30,7 @@ jobs:
         eval $(opam env) && make -C archdoc
         cp archdoc/cheriot-architecture.pdf install
     - name: Upload simulator artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: cheriot_sim
         path: install/
