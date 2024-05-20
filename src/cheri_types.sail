@@ -64,7 +64,8 @@ let otype_unsealed  = 0
 let otype_sentry    = 1 /* Sealed erstwhile or prospective PCC */
 let otype_sentry_id = 2 /* sentry disabling interrupts */
 let otype_sentry_ie = 3 /* sentry enabling interrupts */
-
+let otype_sentry_bid = 4 /* backward entry disabling interrupts */
+let otype_sentry_bie = 5 /* backward entry enabling interrupts */
 
 enum CPtrCmpOp = {
   CEQ,
