@@ -540,10 +540,10 @@ function isCapSentry(cap) =
   }
 
 /*!
- * Returns true if the given capability has one of the forward sentry otypes, otherwise false.
+ * Returns true if the given capability has one of the forward interrupt-control sentry otypes, otherwise false.
  */
-val isCapForwardNonInheritSentry : Capability -> bool
-function isCapForwardNonInheritSentry(cap) =
+val isCapForwardControlSentry : Capability -> bool
+function isCapForwardControlSentry(cap) =
   match unsigned(cap.otype) {
     otype if otype == otype_sentry_id => true,
     otype if otype == otype_sentry_ie => true,
