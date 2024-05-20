@@ -89,8 +89,8 @@ function clause execute AUICGP(imm, cd) = {
 
 union clause ast = CJAL : (bits(21), regidx)
 /*!
- * Capability register *cd* is replaced with the next instruction's **PCC** and
- * sealed as a sentry. **PCC**.**address** is incremented by *imm*.
+ * Capability register *cd* is replaced with the next instruction's **PCC** unsealed.
+ * **PCC**.**address** is incremented by *imm*.
  *
  * ## Exceptions
  *
@@ -108,6 +108,7 @@ union clause ast = CJAL : (bits(21), regidx)
 function clause execute(CJAL(imm, cd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = PC + off;
+
   if newPC[1] == bitone & ~(haveRVC()) then {
     handle_mem_exception(newPC,  E_Fetch_Addr_Align());
     RETIRE_FAIL
@@ -116,7 +117,7 @@ function clause execute(CJAL(imm, cd)) = {
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
     let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_ie else otype_sentry_id;
-    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+    C(cd) = linkCap;
     nextPC = newPC;
     RETIRE_SUCCESS
   }
@@ -133,8 +134,12 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  *
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed and is not a sentry.
- *   - *cs1* is a sentry and *imm* $\ne$ 0.
+ *   - *cs1* is sealed and any of the following holds:
+ *     (a) *imm* $\ne$ 0
+ *     (b) *cd* = *cnull*, *cs1* = *cra* and not backward sentry
+ *     (c) *cd* = *cnull*, *cs1* $\ne$ *cra* and not forward inheriting sentry
+ *     (d) *cd* $\ne$ *cnull* and backward sentry
+ *     (e) *cd* $\ne$ *cra* and (forward enabled or forward disabled sentry)
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
  *
@@ -150,10 +155,16 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   let cs1_val = C(cs1);
   let off : xlenbits = sign_extend(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
+
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
-  } else if isCapSealed(cs1_val) & (not(isCapSentry(cs1_val)) | imm != zeros()) then {
+  } else if isCapSealed(cs1_val) &
+            (imm != zeros() |
+             (cd == zeros() & cs1 == 0b00001 & not(isCapBackwardSentry(cs1_val))) |
+             (cd == zeros() & cs1 != 0b00001 & not(isCapForwardInheritSentry(cs1_val))) |
+             (cd != zeros() & isCapBackwardSentry(cs1_val)) |
+             (cd != 0b00001 & isCapForwardNonInheritSentry(cs1_val))) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
@@ -166,13 +177,15 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_ie else otype_sentry_id;
+    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+    let newCd = C(cd);
+    //print_string("CJALR: *cd=", RegStr(newCd));
     nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
-    if unsigned(cs1_val.otype) == otype_sentry_id then
+    if unsigned(cs1_val.otype) == otype_sentry_id | unsigned(cs1_val.otype) == otype_sentry_bid then
       mstatus->MIE() = 0b0;
-    if unsigned(cs1_val.otype) == otype_sentry_ie then
+    if unsigned(cs1_val.otype) == otype_sentry_ie | unsigned(cs1_val.otype) == otype_sentry_bie then
       mstatus->MIE() = 0b1;
     RETIRE_SUCCESS
   }
