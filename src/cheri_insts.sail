@@ -164,7 +164,7 @@ function clause execute(CJALR(imm, cs1, cd)) = {
              (cd == zeros() & cs1 == 0b00001 & not(isCapBackwardSentry(cs1_val))) |
              (cd == zeros() & cs1 != 0b00001 & not(isCapForwardInheritSentry(cs1_val))) |
              (cd != zeros() & isCapBackwardSentry(cs1_val)) |
-             (cd != 0b00001 & isCapForwardNonInheritSentry(cs1_val))) then {
+             (cd != 0b00001 & isCapForwardControlSentry(cs1_val))) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
