@@ -89,8 +89,8 @@ function clause execute AUICGP(imm, cd) = {
 
 union clause ast = CJAL : (bits(21), regidx)
 /*!
- * Capability register *cd* is replaced with the next instruction's **PCC** unsealed.
- * **PCC**.**address** is incremented by *imm*.
+ * Capability register *cd* is replaced with the next instruction's **PCC** and
+ * sealed as a sentry. **PCC**.**address** is incremented by *imm*.
  *
  * ## Exceptions
  *
@@ -117,7 +117,7 @@ function clause execute(CJAL(imm, cd)) = {
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
     let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_ie else otype_sentry_id;
-    C(cd) = linkCap;
+    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
     nextPC = newPC;
     RETIRE_SUCCESS
   }
@@ -134,12 +134,11 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  *
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
- *   - *cs1* is sealed and any of the following holds:
- *     (a) *imm* $\ne$ 0
- *     (b) *cd* = *cnull*, *cs1* = *cra* and not backward sentry
- *     (c) *cd* = *cnull*, *cs1* $\ne$ *cra* and not forward inheriting sentry
- *     (d) *cd* $\ne$ *cnull* and backward sentry
- *     (e) *cd* $\ne$ *cra* and (forward enabled or forward disabled sentry)
+ *   - *cs1* is sealed and *imm* $\ne$ 0
+ *   - Not all of the following combinations hold:
+ *      1. *cd* = *cnull*, *cs1* = *cra* and *cs1* is a backwards sentry (Function return aka *cret* is only permitted to backwards sentry)
+ *      2. *cd* = *cnull*, *cs1* $ne$ *cra* and *cs1* is unsealed or a forwards interrupt inheriting sentry (Tail calls are only permitted to unsealed caps or interrupt handling sentry using a target register different from *cra*, with the return register *cra* set by a different instruction)
+ *      3. *cd* = *cra* and *cs1* is unsealed or a forwards sentry (Function calls are only permitted to unsealed caps or forwards sentry, with link register *cra*)
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
  *
@@ -159,12 +158,10 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
-  } else if isCapSealed(cs1_val) &
-            (imm != zeros() |
-             (cd == zeros() & cs1 == 0b00001 & not(isCapBackwardSentry(cs1_val))) |
-             (cd == zeros() & cs1 != 0b00001 & not(isCapForwardInheritSentry(cs1_val))) |
-             (cd != zeros() & isCapBackwardSentry(cs1_val)) |
-             (cd != 0b00001 & isCapForwardControlSentry(cs1_val))) then {
+  } else if (isCapSealed(cs1_val) & imm != zeros()) |
+            not ((cd == zreg & cs1 == ra & isCapBackwardSentry(cs1_val)) |
+                 (cd == zreg & cs1 != ra & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val))) |
+                 (cd == ra & (not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val)))) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
