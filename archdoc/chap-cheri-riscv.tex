@@ -461,7 +461,8 @@ The \cotype{} field uses the following values:
   \item[1] sealed as sentry
   \item[2] sealed as interrupt disabling sentry
   \item[3] sealed as interrupt enabling sentry
-  \item[4-5] reserved for use as return sentries in future
+  \item[4] sealed as backward interrupt disabling sentry
+  \item[5] sealed as backward interrupt enabling sentry
   \item[6-7] executable capability sealed with given \cotype{}
   \item[8] reserved (due to encoding)
   \item[9-15] non-executable capability sealed with given \cotype{}
@@ -469,6 +470,20 @@ The \cotype{} field uses the following values:
 The \cotype{}s $1-7$ can only be applied to executable capabilities, while memory and sealing format capabilities can only be sealed with \cotype{}s $9-15$.
 If the \cotype{} field of a memory or sealing format capability is non-zero then bit 3 is implicitly set i.e. \cotype{}s $9-15$ are encoded using values $1-7$.
 An attempt to use \insnriscvref{CSeal} or \insnriscvref{CUnseal} with a reserved \cotype{}, or with an \cotype{} not applicable to the capability format, will clear the capability tag.
+
+Because CHERIoT allows manipulating the status of the interrupt through a function call (and function return) by encoding the interrupt type in the otype, the following attack can occur: A caller calling an interrupt-disabling callee can set the return sentry of the callee to the same callee. This means, the callee will call itself on return all the while operating with interrupts disabled. This will lead to infinite repeated calls to the callee with interrupts disabled, violating availability. This attack can be prevented in CHERIoT by adding two new "backwards-edge" sentries and adding more checks on \insnriscvref{CJALR}, i.e. only the following combinations are allowed in \insnriscvref{CJALR}:
+
+\begin{center}
+\begin{tabular}{|c|c|c|c|}
+\hline
+\asm{cs1} & \asm{cd} & Used for & Valid \cotype{}s \\
+\hline
+\asm{\$cra} & \asm{\$cnull} & Function return & Return sentries $(4, 5)$\\
+$\ne$ \asm{\$cra} & \asm{\$cnull} & Tail call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
+any & \asm{\$cra} & Function call & Unsealed or forward sentries $(0, 1, 2, 3)$\\
+\hline
+\end{tabular}
+\end{center}
 
 \subsection{Capability bounds}
 \label{sec:bounds}
