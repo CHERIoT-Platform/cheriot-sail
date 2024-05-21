@@ -116,7 +116,7 @@ function clause execute(CJAL(imm, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_ie else otype_sentry_id;
+    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
     nextPC = newPC;
     RETIRE_SUCCESS
@@ -176,8 +176,6 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
     let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
-    let newCd = C(cd);
-    //print_string("CJALR: *cd=", RegStr(newCd));
     nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
     if unsigned(cs1_val.otype) == otype_sentry_id | unsigned(cs1_val.otype) == otype_sentry_bid then
