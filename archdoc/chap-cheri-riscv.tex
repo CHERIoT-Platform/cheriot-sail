@@ -474,16 +474,16 @@ An attempt to use \insnriscvref{CSeal} or \insnriscvref{CUnseal} with a reserved
 Because CHERIoT allows manipulating the status of the interrupt through a function call (and function return) by encoding the interrupt type in the otype, the following attack can occur: A caller calling an interrupt-disabling callee can set the return sentry of the callee to the same callee. This means, the callee will call itself on return all the while operating with interrupts disabled. This will lead to infinite repeated calls to the callee with interrupts disabled, violating availability. This attack can be prevented in CHERIoT by adding two new ``backwards-edge'' sentries and adding more checks on \insnriscvref{CJALR}, i.e. only the following combinations are allowed in \insnriscvref{CJALR}:
 
 \begin{center}
-\begin{tabular}{|c|c|c|c|}
-\hline
-\asm{cs1} & \asm{cd} & Used for & Valid \cotype{}s \\
-\hline
-\asm{\$cra} & \asm{\$cnull} & Function return & Return sentries $(4, 5)$\\
-$\ne$ \asm{\$cra} & \asm{\$cnull} & Tail call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
-any & \asm{\$cra} & Function call & Unsealed or forward sentries $(0, 1, 2, 3)$\\
-any & $\ne$ \asm{\$cnull} & Function call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
-\hline
-\end{tabular}
+  \begin{tabular}{|c|c|c|c|}
+    \hline
+    \asm{cs1} & \asm{cd} & Used for & Valid \cotype{}s \\
+    \hline
+    \asm{\$cra} & \asm{\$cnull} & Function return & Return sentries $(4, 5)$\\
+    $\ne$ \asm{\$cra} & \asm{\$cnull} & Tail call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
+    any & $\ne$ \asm{\$cnull} & Function call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
+    any & \asm{\$cra} & Function call & Unsealed or forward sentries $(0, 1, 2, 3)$\\
+    \hline
+  \end{tabular}
 \end{center}
 
 \subsection{Capability bounds}
