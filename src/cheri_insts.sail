@@ -139,6 +139,7 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  *      1. *cd* = *cnull*, *cs1* = *cra* and *cs1* is a backwards sentry (Function return aka *cret* is only permitted to backwards sentry)
  *      2. *cd* = *cnull*, *cs1* $ne$ *cra* and *cs1* is unsealed or a forwards interrupt inheriting sentry (Tail calls are only permitted to unsealed caps or interrupt handling sentry using a target register different from *cra*, with the return register *cra* set by a different instruction)
  *      3. *cd* = *cra* and *cs1* is unsealed or a forwards sentry (Function calls are only permitted to unsealed caps or forwards sentry, with link register *cra*)
+ *      4. *cd* $\ne$ *cnull* and *cs1* is unsealed or a forwards interrupt inheriting sentry (Less restricted function calls to interrupt inheriting sentries)
  *   - *cs1*.**perms** does not grant **Permit_Execute**.
  *   - *cs1*.**address** $+$ *imm* is unaligned, ignoring bit 0.
  *
@@ -161,7 +162,8 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   } else if (isCapSealed(cs1_val) & imm != zeros()) |
             not ((cd == zreg & cs1 == ra & isCapBackwardSentry(cs1_val)) |
                  (cd == zreg & cs1 != ra & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val))) |
-                 (cd == ra & (not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val)))) then {
+                 (cd == ra & (not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val))) |
+                 (cd != zreg & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val)))) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {

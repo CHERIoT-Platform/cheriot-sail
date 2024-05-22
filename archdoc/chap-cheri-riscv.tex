@@ -481,6 +481,7 @@ Because CHERIoT allows manipulating the status of the interrupt through a functi
 \asm{\$cra} & \asm{\$cnull} & Function return & Return sentries $(4, 5)$\\
 $\ne$ \asm{\$cra} & \asm{\$cnull} & Tail call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
 any & \asm{\$cra} & Function call & Unsealed or forward sentries $(0, 1, 2, 3)$\\
+any & $\ne$ \asm{\$cnull} & Function call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
 \hline
 \end{tabular}
 \end{center}
