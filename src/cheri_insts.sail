@@ -135,7 +135,7 @@ union clause ast = CJALR : (bits(12), regidx, regidx)
  * An exception is raised if:
  *   - *cs1*.**tag** is not set.
  *   - *cs1* is sealed and *imm* $\ne$ 0
- *   - Not all of the following combinations hold:
+ *   - None of the following combinations hold:
  *      1. *cd* = *cnull*, *cs1* = *cra* and *cs1* is a backwards sentry (Function return aka *cret* is only permitted to backwards sentry)
  *      2. *cd* = *cnull*, *cs1* $ne$ *cra* and *cs1* is unsealed or a forwards interrupt inheriting sentry (Tail calls are only permitted to unsealed caps or interrupt handling sentry using a target register different from *cra*, with the return register *cra* set by a different instruction)
  *      3. *cd* = *cra* and *cs1* is unsealed or a forwards sentry (Function calls are only permitted to unsealed caps or forwards sentry, with link register *cra*)
