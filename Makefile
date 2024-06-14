@@ -213,7 +213,7 @@ ifneq (,$(COVERAGE))
 C_FLAGS += --coverage -O1
 SAIL_FLAGS += -Oconstant_fold
 else
-C_OPT_FLAGS ?= -O2 -flto
+C_OPT_FLAGS ?= -O2 -flto=auto
 C_FLAGS += $(C_OPT_FLAGS)
 endif
 
