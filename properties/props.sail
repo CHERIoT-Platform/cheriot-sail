@@ -267,3 +267,36 @@ function prop_crrl_cram_usage(reqLen : CapAddrBits) -> bool = {
     let mask2 = getRepresentableAlignmentMask(reqLen);
     ((reqLen == zeros()) | (newLen != zeros())) --> (mask == mask2)
 }
+
+/*!
+ * THIS checks a property for the software-virtualized token sealing mechanism used in
+ * the allocator.  It is not really an ISA property but a sanity check of how the allocator
+ * uses the ISA. See https://github.com/microsoft/cheriot-rtos/pull/244 for details.
+ * The requirement is that given a requested allocation size we must allocate a region of
+ * memory that is large enough for the requested allocation plus an 8 byte header
+ * such that both the entire allocation and a sub-region excluding the header are precisely
+ * representable.
+ */
+$property
+function prop_alloc_sealed_rep(reqSz : CapAddrBits) -> bool = {
+    /* alloc_sealed_unsealed first rounds up requested size to a representable size */
+    let unsealedSz = getRepresentableLength(reqSz);
+    /* then adds 8 bytes for header */
+    let sealedReqSz = unsealedSz + 8;
+    /* The allocator rounds this up to multiple of 8 */
+    let sealedReq8  = [sealedReqSz + 7 with 2..0=0b000];
+    /* and to a representable size. */
+    let allocSz = getRepresentableLength(sealedReq8);
+    /* alloc_sealed_unsealed computes headerPtr relative to top of the allocation rounded down to an 8 byte boundary */
+    let headerPtr = [allocSz - sealedReqSz with 2..0=0b000];
+    /* the unsealed object is 8 bytes above headerPtr */
+    let unsealedPtr = headerPtr + 8;
+    /* therefore the size of the unsealed object can be computed from the size of the allocation minus the unsealedPtr */
+    let unsealedObjSz = allocSz - unsealedPtr;
+    /* We want the unsealedObjSz to be exactly representable */
+    let representable = unsealedObjSz == getRepresentableLength(unsealedObjSz);
+    /* ...and large enough for the requested size */
+    let bigEnough = unsealedObjSz >=_u reqSz;
+    /* For the final property we exclude zero and sizes that result in crrl overflow as these are detected and return NULL */
+    (unsealedSz != zeros()) --> (representable & bigEnough)
+}
