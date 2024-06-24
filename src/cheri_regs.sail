@@ -211,7 +211,7 @@ function string_of_capreg_idx(reg : capreg_idx) -> string =
   match reg {
     0b0 @ greg : bits(5) => "c" ^ dec_str(unsigned(greg)) ^ "/" ^ cap_reg_name_abi(greg),
     0b100000 => "PCC",
-    0b111101 => "MTCC",
+    0b111100 => "MTCC",
     0b111101 => "MTDC",
     0b111110 => "MScratchC",
     0b111111 => "EPCC",
