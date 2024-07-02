@@ -63,7 +63,7 @@
 /* accessors for capability representation */
 
 /* reads a given capability register, or the null capability if the argument is zero. */
-val rC : forall 'n, 0 <= 'n < 32. regno('n) -> regtype effect {rreg, escape}
+val rC : forall 'n, 0 <= 'n < 32. regno('n) -> regtype
 function rC r = {
   match r {
     0  => zero_reg,
@@ -87,7 +87,7 @@ function rC r = {
 }
 
 /* writes a register with a capability value */
-val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit effect {wreg, escape}
+val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit
 function wC (r, v) = {
   /* Encode and decode capability to normalise it prior to writing to register */
   let v = encCapabilityToCapability(v.tag, capToEncCap(v));
@@ -123,7 +123,7 @@ function wC_bits(r: bits(5), v: regtype) -> unit = wC(unsigned(r), v)
 
 overload C = {rC_bits, wC_bits, rC, wC}
 
-val ext_init_regs : unit -> unit effect {wreg}
+val ext_init_regs : unit -> unit
 function ext_init_regs () = {
   PCC = root_cap_exe;
   nextPCC = root_cap_exe;
@@ -163,7 +163,7 @@ function ext_init_regs () = {
  * to be initialised differently. For RVFI we initialise cap regs to default
  * instead of null.
  */
-val ext_rvfi_init : unit -> unit effect {wreg}
+val ext_rvfi_init : unit -> unit
 function ext_rvfi_init () = {
   x1  = root_cap_mem;
   x2  = root_cap_mem;

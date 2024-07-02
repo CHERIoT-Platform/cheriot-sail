@@ -742,7 +742,7 @@ function incCapAddr(c, delta) =
     (representable, newCap)
 
 
-val capToString : (Capability) -> string effect {escape}
+val capToString : (Capability) -> string
 function capToString (cap) = {
   let len = getCapLength(cap);
   let len_str = BitStr(to_bits(cap_len_width + 3, len));

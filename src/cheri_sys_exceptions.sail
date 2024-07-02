@@ -101,7 +101,7 @@ function prepare_trap_vector(p : Privilege, c : Mcause) -> xlenbits = {
  * just for reads from (integer) CSRs. EPCC is validated on write
  * so no legalization is required here.
  */
-val get_xret_target : Privilege -> xlenbits effect {escape, rreg}
+val get_xret_target : Privilege -> xlenbits
 function get_xret_target(p) = {
   if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
   let cap : Capability = MEPCC;
@@ -112,7 +112,7 @@ function get_xret_target(p) = {
  * Setting mepc via CSRW is not supported. MEPCC should be
  * written using CSpecialRW instead.
  */
-val set_xret_target : (Privilege, xlenbits) -> xlenbits effect {escape}
+val set_xret_target : (Privilege, xlenbits) -> xlenbits
 function set_xret_target(p, value) = {
   internal_error(__FILE__, __LINE__,"unsupported");
 }
@@ -121,7 +121,7 @@ function set_xret_target(p, value) = {
  * MEPCC is validated and legalized on write, so this just sets
  * up the new PCC and returns new PC.
  */
-val prepare_xret_target : (Privilege) -> xlenbits effect {rreg, wreg, escape}
+val prepare_xret_target : (Privilege) -> xlenbits
 function prepare_xret_target(p) = {
   if p != Machine then internal_error(__FILE__, __LINE__,"unsupported");
   let epcc : Capability = MEPCC;

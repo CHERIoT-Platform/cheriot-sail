@@ -69,7 +69,7 @@
  * are flags controlling relaxed memory ordering and atomic memory access 
  * (not used on single-core MCU).
  */
-val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability) effect {rmem, rmemt, rreg, escape}
+val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability)
 function mem_read_cap (addr, aq, rl, res) = {
   let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
   match result {
@@ -116,7 +116,7 @@ function mem_read_cap_revoked (addr) = {
  * integrated with the RMEM concurrency tool, but the address annoucement
  * may be ignored in sequential execution.
  */
-val mem_write_ea_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(unit) effect {eamem}
+val mem_write_ea_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(unit)
 function mem_write_ea_cap(addr, aq, rl, con) = {
   if   ~(is_aligned_addr(addr, cap_size))
   then MemException(E_SAMO_Addr_Align())
@@ -130,7 +130,7 @@ function mem_write_ea_cap(addr, aq, rl, con) = {
  * in case of exception [e]. [aq], [rl] and [res] are flags controlling relaxed
  * memory ordering and atomic accesses (not used on single-core MCU).
  */
-val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool) effect {wmv, rreg, wreg, escape, wmvt}
+val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool)
 function mem_write_cap (addr, cap, aq, rl, con) = {
   let cap_bits = capToBits(cap);
   /* Assume that conversion to bits and back does not change the capability.
