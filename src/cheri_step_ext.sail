@@ -62,7 +62,7 @@
 
 /* set misa.X to indicate the presence of a non-standard extension. */
 
-val ext_init : unit -> unit effect {wreg}
+val ext_init : unit -> unit
 function ext_init () = {
   misa->X() = 0b1;
   mccsr->d() = 0b1;

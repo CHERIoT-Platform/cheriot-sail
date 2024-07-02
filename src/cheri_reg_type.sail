@@ -70,7 +70,7 @@ type regtype = Capability
 let zero_reg : regtype = null_cap
 
 /* register printer */
-val RegStr : Capability -> string effect {escape}
+val RegStr : Capability -> string
 function RegStr(r) = capToString(r)
 
 /* conversions */

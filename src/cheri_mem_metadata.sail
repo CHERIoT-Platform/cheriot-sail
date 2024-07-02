@@ -74,7 +74,7 @@ function tag_addr_to_addr(tag_addr : tagaddrbits) -> xlenbits = tag_addr @ zeros
 /* FIXME: we should have a maximum cap_size constraint for 'n.
  * This would check that the assumption below of a max span of two regions is valid.
  */
-val __WriteRAM_Meta : forall 'n. (xlenbits, atom('n), mem_meta) -> unit effect {wmvt}
+val __WriteRAM_Meta : forall 'n. (xlenbits, atom('n), mem_meta) -> unit
 function __WriteRAM_Meta(addr, width, tag) = {
   let tag_addr = addr_to_tag_addr(addr);
   if get_config_print_mem() then
@@ -93,7 +93,7 @@ function __WriteRAM_Meta(addr, width, tag) = {
 }
 
 /* FIXME: we should have a maximum cap_size constraint for 'n. */
-val __ReadRAM_Meta  : forall 'n. (xlenbits, atom('n)) -> mem_meta effect {rmemt}
+val __ReadRAM_Meta  : forall 'n. (xlenbits, atom('n)) -> mem_meta
 function __ReadRAM_Meta(addr, width) = {
   let tag_addr = addr_to_tag_addr(addr);
   let tag = MEMr_tag(zero_extend(tag_addr));
