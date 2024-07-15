@@ -45,6 +45,8 @@ jobs:
       with:
         name: cheriot_sim
         path: install/
+    - name: Upload pages artifact
+      uses: actions/upload-pages-artifact@v2
 
   deploy:
     # Run only when landing, not as part of a PR
