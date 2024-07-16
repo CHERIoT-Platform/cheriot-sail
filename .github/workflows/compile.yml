@@ -13,22 +13,16 @@ concurrency:
 
 jobs:
   build:
-    runs-on: [ubuntu-20.04]
+    runs-on: [ubuntu-24.04]
+    container: ghcr.io/cheriot-platform/sail-latex:latest
     steps:
-    - name: Install dependencies
-      run: |
-        sudo apt update
-        sudo apt install -y --no-install-recommends opam zlib1g-dev pkg-config libgmp-dev z3 cvc4 texlive-plain-generic texlive-latex-base texlive-latex-recommended texlive-latex-extra texlive-science texlive-fonts-recommended texlive-fonts-extra texlive-bibtex-extra texlive-extra-utils latexmk
-    - name: Init opam
-      run: opam init -y
-    - name: Install sail
-      run: git clone -n https://github.com/rems-project/sail.git && cd sail && git checkout bb50f71dced35cd199554f0360a93b934e6443a1 && opam install -y .
     - name: Check out repository code
       uses: actions/checkout@HEAD
       with:
         submodules: true
     - name: Build simulators
       run: |
+        export HOME=/root/
         eval $(opam env) && make csim
         mkdir install
         cp c_emulator/cheriot_sim install
@@ -36,6 +30,7 @@ jobs:
         cp sail-riscv/LICENCE install/LICENCE-sail-riscv
     - name: Build arch doc
       run: |
+        export HOME=/root/
         eval $(opam env) && make -C archdoc
         cp archdoc/cheriot-architecture.pdf install
         mkdir -p _site/
@@ -61,7 +56,7 @@ jobs:
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    runs-on: [ubuntu-20.04]
+    runs-on: [ubuntu-24.04]
     needs: build
     steps:
       - name: Deploy to GitHub Pages
