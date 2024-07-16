@@ -2,7 +2,7 @@
 all: perms.svg
 
 perms.dot: perms.py
-	./perms.py > $@
+	./perms.py | tred > $@
 
 %.svg : %.dot
 	dot -Tsvg -o $@ $<

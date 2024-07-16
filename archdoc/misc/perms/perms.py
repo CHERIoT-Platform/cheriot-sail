@@ -134,8 +134,7 @@ def comb_to_str(c):
     return '_'.join(cs) or "0"
 
 # Now we output a graph representation of the useful combinations in dot format.
-# To make it pretty we add edges for the subset partial order, excluding edges
-# implied by transitivity.
+# To make it pretty we add edges for the subset partial order.
 
 print("digraph {")
 
@@ -143,19 +142,18 @@ print("digraph {")
 for x in useful_combinations:
     print(comb_to_str(x))
 
-# Output the edges for the subset relation. To exclude transitive edges
-# we stick to pairs of combinations that differ in size by one. This
-# doesn't work for all graphs but seems to be OK for us.
+# Output the edges for the subset relation. This results in many redundant edges
+# but fortunately graphviz provides `tred` for computing the transitive
+# reduction.
 for x in useful_combinations:
     for y in useful_combinations:
-        if len(x) + 1 == len(y):
-            xs = set(x)
-            ys = set(y)
-            if xs.issubset(ys):
-                # find the permission in ys not in xs to use as label
-                diff = (ys - xs).pop()
-                x_str=comb_to_str(x)
-                y_str=comb_to_str(y)
-                print(f"{y_str} -> {x_str} [label=\"{diff}\", fontsize=10]")
+        xs = set(x)
+        ys = set(y)
+        if xs < ys:
+            # find the permissions in ys not in xs to use as label
+            diff = ys - xs
+            x_str=comb_to_str(x)
+            y_str=comb_to_str(y)
+            print(f"{y_str} -> {x_str} [label=\"{comb_to_str(diff)}\", fontsize=10]")
 
 print("}")
