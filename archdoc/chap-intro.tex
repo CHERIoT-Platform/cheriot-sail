@@ -55,7 +55,7 @@ We may gloss over subtle distinctions and conflate the terms ``capability,'' ``p
 
 A \defn{compartment} is a collection of code, data, and capabilities that serves as an invocable security context.
 Compartments statically export \keyword{entry-points}, which may be statically imported by other compartments or passed as opaque \keyword{cross-compartment function pointers}.
-A compartment they (statically or dynamically) imports an entry point may then invoke it to perform a \keyword{cross-compartment call}.
+A compartment that (statically or dynamically) imports an entry point may then invoke it to perform a \keyword{cross-compartment call}.
 Such calls are synchronous and transition the calling thread from one compartment to another.
 The thread's stack is used, with appropriate bounds adjustment, in both the caller and callee compartment.
 

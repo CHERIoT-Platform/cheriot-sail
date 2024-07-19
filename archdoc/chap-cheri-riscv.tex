@@ -748,6 +748,6 @@ The stack high water mark CSRs are saved and restored during context switches al
 Note that only the address of the store is accounted for, not the width.
 This means that it is possible for an unaligned store with an address below \mshwmb{} to write bytes above \mshwmb{} without updating \mshwm{}.
 For example, a 4-byte store to \mshwmb{}$ - 1$ would write the bytes at \mshwmb{}$\dots{}$\mshwmb$+ 2$ but leave \mshwm{} unchanged, potentially breaking the RTOS's invariant.
-In practice this is not a problem as the RTOS will never issue a capability to untrusted code that crosses the stack base and would therefore premit such a write.%
+In practice this is not a problem as the RTOS will never issue a capability to untrusted code that crosses the stack base and would therefore permit such a write.%
 \footnote{In fact, no such capabilities should exist after the loader has run and initialised the thread data structures.}
 Given this, we choose not to unnecessarily complicate the hardware by requiring it to handle this corner case.

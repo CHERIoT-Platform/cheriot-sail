@@ -71,7 +71,7 @@ In particular, if a compartment has more than 4 KiB of mutable global state it m
 
 \cref{fig:exporttable} shows the layout of the export table for a compartment.
 Each export table starts with a copy of the \PCC{} and \CGP{} for the target compartment.
-The next 32-bits is the offset of the compartment's error handler realtive to \PCC{}.\cbase{}, or $-1$ if the compartment does not have an error handler.
+The next 32-bits is the offset of the compartment's error handler relative to \PCC{}.\cbase{}, or $-1$ if the compartment does not have an error handler.
 If an error occurs the switcher may jump to this as described in \cref{sec:errorhandling}.
 After the header, the export table is comprised of one 32-bit entry per exported function.
 The first 16 bits of each entry provide the displacement from the start of the compartment's \PCC{} to the entry point.

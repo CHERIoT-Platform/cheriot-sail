@@ -1,13 +1,13 @@
 # CHERIoT Specification and Sail model
 
 This repository contains the specification for the [CHERIoT](https://cheriot.org) ISA.
-It consists of a document written in [latex](/archdoc) which includes exerpts of the [reference model](/src) written in [Sail](http://github.com/rems-project/sail).
+It consists of a document written in [latex](/archdoc) which includes excerpts of the [reference model](/src) written in [Sail](http://github.com/rems-project/sail).
 The [current draft architecture document](https://microsoft.github.io/cheriot-sail/cheriot-architecture.pdf) built from this repository contains a full description of the ISA and its intended use by [CHERIoT RTOS](https://github.com/microsoft/cheriot-rtos/).
-The Sail code is used to build an instruction set simulator which is included in the [CHERIoT RTOS dev containter](https://github.com/microsoft/cheriot-rtos/blob/main/docs/GettingStarted.md).
+The Sail code is used to build an instruction set simulator which is included in the [CHERIoT RTOS dev container](https://github.com/microsoft/cheriot-rtos/blob/main/docs/GettingStarted.md).
 It can also be used to prove [properties](properties) of the ISA using Sail's SMT support.
 
 The architecture is based on the [CHERI specification](https://github.com/CTSRD-CHERI/cheri-specification).
-The code is dervied from [sail-cheri-riscv](http://github.com/CTSRD-CHERI/sail-cheri-riscv) and uses [sail-riscv](http://github.com/rems-project/sail-riscv) as a submodule. 
+The code is derived from [sail-cheri-riscv](http://github.com/CTSRD-CHERI/sail-cheri-riscv) and uses [sail-riscv](http://github.com/rems-project/sail-riscv) as a submodule.
 
 # Building
 
