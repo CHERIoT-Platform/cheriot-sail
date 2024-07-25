@@ -860,6 +860,10 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * The capability located in memory at *cs1*.**address** $+$ *imm* is
  * replaced with capability register *cs2*.
  *
+ * The stored capability will have its tag forcibly cleared if *cs1*.**perms**
+ * does not grant **Permit_Store_Local_Capability** and *cs2*.**perms** does not
+ * grant **Global**.
+ *
  * ## Exceptions
  *
  * An exception is raised if:
@@ -868,8 +872,6 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  *   - *cs1*.**perms** does not grant **Permit_Store**.
  *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
  *     *cs2*.**tag** is set.
- *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
- *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  */
