@@ -861,7 +861,7 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * replaced with capability register *cs2*.
  *
  * The stored capability will have its tag forcibly cleared if *cs1*.**perms**
- * does not grant **Permit_Store_Local_Capability** and *cs2*.**perms** does not
+ * does not grant **Permit_Store_Local_Capability** and either *cs2*.**perms** does not
  * grant **Global** or *cs2* is a backwards sentry.
  *
  * ## Exceptions
