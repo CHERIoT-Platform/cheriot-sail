@@ -327,7 +327,7 @@ It has no special meaning to hardware but behaves like other permissions in that
 It is intended to be used as a software defined permission.
 \item[GL] If \cappermG is set then this capability is global and can be stored anywhere, otherwise it is local and may be stored only via capabilities with the \cappermSLC permission.
 \item[SL] If \cappermSLC is set (along with \cappermS and \cappermMC) then any capability may be stored via this capability.
-Otherwise, attempting to store a local capability (with GL unset) will store the capability with the tag cleared.
+Otherwise, attempting to store a local capability (with GL unset) or a backwards sentry (see \cref{sec:sealing}) will store the capability with the tag cleared.
 \item[LM] If \cappermLM is not set then any tagged capabilities loaded via this capability will have SD and LM cleared.
 Thus, if SD and LM are cleared on a capability then it, and any capability loaded via it (including via indirection), will be read-only.
 This is useful for delegating a read-only pointer to a data structure, for example to enforce a language level transitive \asm{const}.
@@ -486,6 +486,9 @@ Because CHERIoT allows manipulating the status of the interrupt through a functi
     \hline
   \end{tabular}
 \end{center}
+
+As an additional special case, \insnriscvref{CSC} will require an authority with \cappermSLC to store a backwards sentry (that is, a capability sealed with type 4 or 5).
+This allows the RTOS to confine backward sentries to stacks and register store areas.
 
 \subsection{Capability bounds}
 \label{sec:bounds}

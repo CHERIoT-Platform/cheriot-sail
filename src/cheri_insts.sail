@@ -860,6 +860,10 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  * The capability located in memory at *cs1*.**address** $+$ *imm* is
  * replaced with capability register *cs2*.
  *
+ * The stored capability will have its tag forcibly cleared if *cs1*.**perms**
+ * does not grant **Permit_Store_Local_Capability** and either *cs2*.**perms** does not
+ * grant **Global** or *cs2* is a backwards sentry.
+ *
  * ## Exceptions
  *
  * An exception is raised if:
@@ -868,8 +872,6 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  *   - *cs1*.**perms** does not grant **Permit_Store**.
  *   - *cs1*.**perms** does not grant **Permit_Store_Capability** and
  *     *cs2*.**tag** is set.
- *   - *cs1*.**perms** does not grant **Permit_Store_Local_Capability**,
- *     *cs2*.**tag** is set and *cs2*.**perms** does not grant **Global**.
  *   - *cs1*.**address** $+$ *imm* $\lt$ *cs1*.**base**.
  *   - *cs1*.**address** $+$ *imm* $+$ **CLEN** $/$ 8 $\gt$ *cs1*.**top**.
  */
@@ -903,7 +905,10 @@ function clause execute StoreCapImm(cs2, cs1, imm) = {
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
         MemValue(_) => {
-          let stored_val = clearTagIf(cs2_val, not (auth_val.permit_store_local_cap) & not(cs2_val.global));
+          let stored_val =
+              clearTagIf(cs2_val, not (auth_val.permit_store_local_cap) &
+                          ( not(cs2_val.global)
+                          | isCapBackwardSentry(cs2_val) ));
           let res : MemoryOpResult(bool) = mem_write_cap(addr, stored_val, false, false, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,

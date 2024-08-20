@@ -6,7 +6,7 @@
 \begin{description}
 \item[0.5] The version released as technical report MSR-TR-2023-6: \emph{CHERIoT: Rethinking security for low-cost embedded systems}, February 2023\footnote{\url{https://aka.ms/cheriot-tech-report}}.
 \item[0.6] The current, under-development version of the ISA. The following changes have been made since the previous released version:
-    \begin{description}
+  \begin{description}
     \item[\ghissue{20}, \ghpr{26}] Capability stores now clear the tag of the stored value instead of raising an exception in case of a store-local violation
     (i.e. an attempt to store a non-global capability via a capability without the store-local permission).
     Tag clearing is preferable for software because it removes the possibility of a trap when copying untrusted inputs.
@@ -37,9 +37,11 @@
           Software accepting sealed capabilities must be prepared to receive local (that is, \cappermG-lacking) variants,
           even if none were ever explicitly constructed.
       \end{description}
-    \end{description}
     \item[\ghissue{15}, \ghpr{49}] Document stack high water mark.
     Make it explicitly 16-byte aligned and point out the unaligned write spanning \mshwmb{} corner case, which we do not require hardware to handle.
     \item[\ghpr{54}] Create backward sentries for function returns and add more checks in \rvcheriasminsnref{CJAL}
     Because CHERIoT allows manipulating the status of the interrupt through a function call (and function return) by encoding the interrupt type in the otype, the following attack can occur: A caller calling an interrupt-disabling callee can set the return sentry of the callee to the same callee. This means, the callee will call itself on return all the while operating with interrupts disabled. This will lead to infinite repeated calls to the callee with interrupts disabled, violating availability. This attack can be prevented in CHERIoT by adding two new ``backwards-edge'' sentries and adding more checks on \rvcheriasminsnref{CJALR}.
+    \item[\ghpr{64}] Attempting to store a ``backwards-edge'' sentry through an authorizing cap lacking \cappermSLC will clear the tag of the stored value.
+    This enables the RTOS to confine ``backwards-edge'' sentries to the stack and register spill area.
+  \end{description}
 \end{description}
