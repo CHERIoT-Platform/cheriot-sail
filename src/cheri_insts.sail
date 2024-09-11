@@ -715,7 +715,8 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
         1 => true, /* otype_sentry */
         2 => true, /* otype_sentry_id */
         3 => true, /* otype_sentry_ie */
-        /* 4 and 5 are reserved */
+        4 => true, /* otype_sentry_bid */
+        5 => true, /* otype_sentry_bie */
         6 => true,
         7 => true,
         _ => false
