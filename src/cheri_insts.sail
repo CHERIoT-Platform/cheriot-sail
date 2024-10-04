@@ -596,6 +596,67 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
+/*
+ * Count trailing zeros; this is in the upstream RISC-V model but our submodule
+ * isn't new enough for it to be there, too.
+ */
+val LowestSetBit : forall 'N, 0 < 'N . bits('N) -> int
+function LowestSetBit x = {
+  foreach (i from 0 to (sizeof('N) - 1) by 1 in dec)
+    if [x[i]] == 0b1 then return(i) else ();
+  return sizeof('N);
+}
+
+union clause ast = CSetBoundsRoundDown : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set to capability register *cs1* with its
+ * **base** field replaced with *cs1*.**address** and its **length** field
+ * replaced with the maximum exactly representable value no larger than
+ * the value in the integer register *rs2*.
+ *
+ * ## Notes
+ *  - The same caveat regarding the order of the bounds check applies as for
+ *    [CSetBounds].
+ */
+function clause execute (CSetBoundsRoundDown(cd, cs1, rs2)) = {
+  let cs1_val = C(cs1);
+  let rs2_val = X(rs2);
+
+  let newBase = cs1_val.address;
+
+  /*
+   * The maximum possible representable length given the new base is a full
+   * mantissa width of 1s followed by 0s with its least significant 1 aligned
+   * to the least significant 1 in the base address.
+   */
+  let maxLen = sail_zero_extend(sail_ones(cap_mantissa_width), sizeof(xlen))
+               << LowestSetBit(newBase);
+
+  /*
+   * Ensure that the requested length is representable by making sure that
+   * it fits within a mantissa width, rounding down by dropping any lower
+   * bits.  This is equivalent to masking by a mantissa width of 1s with its
+   * MSB aligned to the highest set bit in the requested length.
+   */
+  let rawReqLen = X(rs2);
+  let reqLen = rawReqLen & getRepresentableAlignmentMask(rawReqLen);
+
+  /*
+   * If the rounded-down requested length is larger than what we can
+   * represent given the new base address, use the maximum representable length
+   * instead.  If smaller, use it directly, knowing that it is representable
+   * due to having been rounded down.
+   */
+  let newLen = if unsigned(reqLen) > unsigned(maxLen) then maxLen else reqLen;
+
+  let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
+  let inCap = clearTagIfSealed(cs1_val);
+  let (exact, newCap) = setCapBounds(inCap, newBase, newLen);
+  assert(exact, "CSetBoundsRoundDown must always result in an exact cap");
+  C(cd) = clearTagIf(newCap, not(inBounds));
+  RETIRE_SUCCESS
+}
+
 union clause ast = CClearTag : (regidx, regidx)
 /*!
  * Capability register *cd* is replaced with the contents of *cs1*, with
@@ -980,6 +1041,7 @@ mapping clause encdec = CSetHigh(cd, cs1, rs2)    if (haveXcheri()) <-> 0b001011
 mapping clause encdec = CIncAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBounds(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001000 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsRoundDown(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001010 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -999,6 +1061,7 @@ mapping clause assembly = CSetHigh(cd, cs1, rs2)  <-> "csethigh"    ^ spc() ^ ca
 mapping clause assembly = CIncAddr(cd, cs1, rs2)   <-> "cincaddr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBounds(cd, cs1, rs2) <-> "csetbounds" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBoundsExact(cd, cs1, rs2) <-> "csetboundsexact" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = CSetBoundsRoundDown(cd, cs1, rs2) <-> "csetboundsrounddown" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 
 mapping clause assembly = CSub(rd, cs1, cs2)      <-> "csub"        ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 

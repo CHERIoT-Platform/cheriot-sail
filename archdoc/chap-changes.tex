@@ -43,5 +43,6 @@
     Because CHERIoT allows manipulating the status of the interrupt through a function call (and function return) by encoding the interrupt type in the otype, the following attack can occur: A caller calling an interrupt-disabling callee can set the return sentry of the callee to the same callee. This means, the callee will call itself on return all the while operating with interrupts disabled. This will lead to infinite repeated calls to the callee with interrupts disabled, violating availability. This attack can be prevented in CHERIoT by adding two new ``backwards-edge'' sentries and adding more checks on \rvcheriasminsnref{CJALR}.
     \item[\ghpr{64}] Attempting to store a ``backwards-edge'' sentry through an authorizing cap lacking \cappermSLC will clear the tag of the stored value.
     This enables the RTOS to confine ``backwards-edge'' sentries to the stack and register spill area.
+    \item[\ghissue{72},\ghpr{74}] Introduce \rvcheriasminsnref{CSetBoundsRoundDown} to facilitate constructing representable slices of buffers.
   \end{description}
 \end{description}
