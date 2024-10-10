@@ -12,13 +12,13 @@ let gen_sailbits_geom n s =
 
 let test_cap_decode capbits =
   let cap = Cheri_cc.zcapBitsToCapability(false, capbits) in
-  let (bot, top)= Cheri_cc.zgetCapBounds(cap) in
+  let (bot, length)= Cheri_cc.zgetCapBounds(cap) in
   begin
     print (Cheri_cc.string_of_zbits capbits);
     print (",0x");
     print (Z.format "08x" bot);
     print (",0x");
-    print (Z.format "09x" top);
+    print (Z.format "09x" length);
     print ",";
     print (Cheri_cc.string_of_zbits (Cheri_cc.zgetCapPerms cap));
     print (",");
