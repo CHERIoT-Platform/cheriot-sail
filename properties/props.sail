@@ -94,8 +94,7 @@ $property
 function prop_setbounds(reqBase : CapAddrBits, reqLen : CapAddrBits) -> bool = {
     let (exact, c) = setCapBounds(root_cap_mem, reqBase, reqLen);
     let encodable = capEncodable(c);
-    let (b2, l2) = getCapBoundsBits(c);
-    let t2 = (0b0 @ b2) + l2;
+    let (b2, l2, t2) = getCapBoundsBits(c);
     let reqTop = (0b0 @ reqBase) + (0b0 @ reqLen);
     let saneTop = reqTop <=_u 0b1@0x00000000;
     saneTop --> (
@@ -122,15 +121,13 @@ function prop_setbounds_monotonic(
         reqBase1 : CapAddrBits, reqLen1 : CapAddrBits,
         reqBase2 : CapAddrBits, reqLen2 : CapAddrBits) -> bool = {
     let (exact1, c1) = setCapBounds(root_cap_mem, reqBase1, reqLen1);
-    let (b1, l1) = getCapBoundsBits(c1);
-    let t1 = (0b0 @ b1) + l1;
+    let (b1, l1, t1) = getCapBoundsBits(c1);
     let reqTop1 = (0b0 @ reqBase1) + (0b0 @ reqLen1);
     let saneTop1 = reqTop1 <=_u 0b1@0x00000000;
     let reqTop2 = (0b0 @ reqBase2) + (0b0 @ reqLen2);
     let saneTop2 = reqTop2 <=_u 0b1@0x00000000;
     let (exact2, c2) = setCapBounds(c1, reqBase2, reqLen2);
-    let (b2, l2) = getCapBoundsBits(c2);
-    let t2 = (0b0 @ b2) + l2;
+    let (b2, l2, t2) = getCapBoundsBits(c2);
     let requestMonotonic = (b1 <=_u reqBase2) & (reqTop2 <=_u t1);
     let resultMonotonic = (b1 <=_u b2) & (t2 <=_u t1);
     (saneTop1 & saneTop2 & requestMonotonic) --> resultMonotonic
@@ -145,12 +142,10 @@ $property
 function prop_setbounds_precise(reqBase1 : CapAddrBits, reqLen1 : CapAddrBits,
         c2 : CapBits) -> bool = {
     let (exact, c1) = setCapBounds(root_cap_mem, reqBase1, reqLen1);
-    let (b1, l1) = getCapBoundsBits(c1);
-    let t1 = (0b0 @ b1) + l1;
+    let (b1, l1, t1) = getCapBoundsBits(c1);
     let reqTop1 = (0b0 @ reqBase1) + (0b0 @ reqLen1);
     let saneTop1 = reqTop1 <=_u 0b1@0x00000000;
-    let (b2, l2) = getCapBoundsBits(capBitsToCapability(false, c2));
-    let t2 = (0b0 @ b2) + l2;
+    let (b2, l2, t2) = getCapBoundsBits(capBitsToCapability(false, c2));
     let validBase = b2 <=_u reqBase1;
     let betterBase = b1 <_u b2;
     let validTop = reqTop1 <=_u t2;
@@ -182,8 +177,7 @@ function prop_repbounds_c(reqBase : CapAddrBits, reqLen : CapAddrBits, newAddr :
     let (exact, c) = setCapBounds(root_cap_mem, reqBase, reqLen);
     let reqTop = (0b0 @ reqBase) + (0b0 @ reqLen);
     let saneTop = reqTop <=_u 0b1@0x00000000;
-    let (b, l) = getCapBoundsBits(c);
-    let t = (0b0 @ b) + l;
+    let (b, l, t) = getCapBoundsBits(c);
     let (representable, newCap) = setCapAddr(c, newAddr);
     let inCBounds = (b <=_u newAddr) & ((0b0 @ newAddr) <=_u t);
     (saneTop & inCBounds) --> representable
@@ -198,8 +192,7 @@ function prop_repbounds(reqBase : CapAddrBits, reqLen : CapAddrBits, newAddr : C
     let (exact, c) = setCapBounds(root_cap_mem, reqBase, reqLen);
     let reqTop = (0b0 @ reqBase) + (0b0 @ reqLen);
     let saneTop = reqTop <=_u 0b1@0x00000000;
-    let (b, l) = getCapBoundsBits(c);
-    let t = (0b0 @ b) + l;
+    let (b, l, t) = getCapBoundsBits(c);
     let (representable, newCap) = setCapAddr(c, newAddr);
     let repTop = (0b0 @ b) + ((to_bits(33,1) << unsigned(c.E)) << 9);
     /* The representable bounds check: either E is max or address is in range */

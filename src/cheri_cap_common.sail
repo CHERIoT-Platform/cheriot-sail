@@ -404,7 +404,7 @@ let null_cap_bits : CapBits = capToBits(null_cap)
 /*!
  * Returns the decoded base and top of the given Capability.
  */
-function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = {
+function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits, CapLenBits) = {
   let E = if c.E >=_u cap_max_E_bits then cap_max_E_bits else c.E;
   let a : CapAddrBits = c.address;
   let a_mid = truncate(a >> E, cap_B_width);
@@ -412,12 +412,13 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = {
   let a_top = a >> (E + cap_B_width);
   let base : CapAddrBits = truncate(((a_top - a_hi) @ c.B) << E, cap_addr_width);
   let length : CapLenBits  = truncate((zeros(24) @ c.M) << E, cap_len_width);
-  (base, length)
+  let top : CapLenBits = (0b0 @ base) + length;
+  (base, length, top)
 }
 
-function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen) =
-  let (base : CapAddrBits, length : CapLenBits) = getCapBoundsBits(cap) in
-  (unsigned(base), unsigned(length))
+function getCapBounds(cap) : Capability -> (CapAddrInt, CapLen, CapLen) =
+  let (base : CapAddrBits, length: CapLenBits, top : CapLenBits) = getCapBoundsBits(cap) in
+  (unsigned(base), unsigned(length), unsigned(top))
 
 val count_ones : forall 'ni 'no, 'no >= 1. (int('no), bits('ni)) -> bits('no)
 function count_ones (no, x) = {
@@ -449,7 +450,7 @@ function setCapBounds(cap, b, l) : (Capability, CapAddrBits, CapAddrBits) -> (bo
   let lostSum = unsigned(sumMod2e & mask2e) != 0;
   let i : bits(2) = iInit + (if lostSum then 0b01 else 0b00);
   let m : bits(cap_B_width + 2) = d + zero_extend(i);
-  let m1 : bits(cap_B_width + 1) = if m[(cap_B_width + 1)..(cap_B_width + 1)] == 0b1 then m[10..1] + zero_extend(m[0..0]) else truncate(m, cap_B_width + 1);
+  let m1 : bits(cap_B_width + 1) = if m[(cap_B_width + 1)..(cap_B_width + 1)] == 0b1 then m[(cap_B_width + 1)..1] + zero_extend(m[0..0]) else truncate(m, cap_B_width + 1);
   let e1 : bits(cap_E_width) = if m[(cap_B_width + 1)..(cap_B_width + 1)] == 0b1 then e+1 else e;
   let m2 : bits(cap_B_width + 1) = if m1[cap_B_width..cap_B_width] == 0b1 then zero_extend(m1[cap_B_width..1]) + zero_extend(m1[0..0]) else truncate(m1, cap_B_width + 1);
   let e2 : bits(cap_E_width) = if m1[cap_B_width..cap_B_width] == 0b1 then e1+1 else e1;
@@ -565,15 +566,15 @@ function unsealCap(cap) : Capability -> Capability =
     {cap with otype=to_bits(cap_otype_width, otype_unsealed)}
 
 function getCapBaseBits(c) : Capability -> CapAddrBits =
-    let (base, _) = getCapBoundsBits(c) in
+    let (base, _, _) = getCapBoundsBits(c) in
     base
 
 function getCapBase(c) : Capability -> CapAddrInt =
     unsigned(getCapBaseBits(c))
 
 function getCapTopBits(c) : Capability -> CapLenBits =
-    let (base, length) = getCapBoundsBits(c) in {
-      zero_extend(base) + length
+    let (_, _, top) = getCapBoundsBits(c) in {
+      top
     }
 
 function getCapTop (c) : Capability -> CapLen =
@@ -587,7 +588,7 @@ function getCapOffset(c) : Capability -> CapAddrInt =
     unsigned(getCapOffsetBits(c))
 
 function getCapLength(c) : Capability -> CapLen =
-    let (base, length) = getCapBoundsBits(c) in
+    let (_, length, _) = getCapBoundsBits(c) in
       unsigned(length)
 
 /*!
@@ -598,9 +599,9 @@ function getCapLength(c) : Capability -> CapLen =
  */
 val inCapBounds  : (Capability, CapAddrBits, CapLen) -> bool
 function inCapBounds (cap, addr, size) = {
-  let (base, length) = getCapBounds(cap);
+  let (base, length, top) = getCapBounds(cap);
   let a = unsigned(addr);
-  (a >= base) & (size <= length)
+  (a >= base) & (a + size <= top)
 }
 
 function int_to_cap (offset) : CapAddrBits -> Capability =
@@ -630,8 +631,8 @@ function clearTag(cap) : Capability -> Capability =
     clearTagIf(cap, true)
 
 function capBoundsEqual (c1, c2) : (Capability, Capability) -> bool =
-    let (base1, length1) = getCapBounds(c1) in
-    let (base2, length2) = getCapBounds(c2) in
+    let (base1, length1, _) = getCapBounds(c1) in
+    let (base2, length2, _) = getCapBounds(c2) in
     (base1 == base2) & (length1 == length2)
 
 /*!
@@ -688,9 +689,8 @@ function incCapAddr(c, delta) =
 
 val capToString : (Capability) -> string
 function capToString (cap) = {
-  let top = getCapTop(cap);
-  let top_str = BitStr(to_bits(cap_len_width + 3, top));
-  let (base, length) = getCapBoundsBits(cap);
+  let (base, length, top) = getCapBoundsBits(cap);
+  let top_str = BitStr(0b000 @ top);
   let len_str = BitStr(0b000 @ length);
   BitStr(cap.address)
     ^ " (v:" ^ (if cap.tag then "1 " else "0 ")

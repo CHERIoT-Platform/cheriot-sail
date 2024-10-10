@@ -661,8 +661,8 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
 
-  let (cs2_base, cs2_length) = getCapBounds(cs2_val);
-  let (cs1_base, cs1_length) = getCapBounds(cs1_val);
+  let (cs2_base, cs2_length, cs2_top) = getCapBounds(cs2_val);
+  let (cs1_base, cs1_length, cs1_top) = getCapBounds(cs1_val);
   let cs2_perms = getCapPerms(cs2_val);
   let cs1_perms = getCapPerms(cs1_val);
 
@@ -670,7 +670,7 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
                  0b0
                else if cs2_base < cs1_base then
                  0b0
-               else if cs2_base + cs2_length > cs1_base + cs1_length then
+               else if cs2_top > cs1_top then
                  0b0
                else if (cs2_perms & cs1_perms) != cs2_perms then
                  0b0
@@ -706,7 +706,7 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
   let cs2_val = C(cs2);
 
   let cs2_addr = unsigned(cs2_val.address);
-  let (cs2_base, cs2_length) = getCapBounds(cs2_val);
+  let (cs2_base, cs2_length, cs2_top) = getCapBounds(cs2_val);
 
   let isPermittedOtype : bool =
     if cs1_val.permit_execute then
@@ -728,7 +728,7 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
                 & not(isCapSealed(cs2_val))
                 & cs2_val.permit_seal
                 & (cs2_addr >= cs2_base)
-                & (cs2_addr < cs2_base + cs2_length)
+                & (cs2_addr < cs2_top)
                 & isPermittedOtype;
 
   let inCap = clearTagIfSealed(cs1_val);
@@ -750,14 +750,14 @@ function clause execute (CUnseal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
   let cs2_addr = unsigned(cs2_val.address);
-  let (cs2_base, cs2_length) = getCapBounds(cs2_val);
+  let (cs2_base, cs2_length, cs2_top) = getCapBounds(cs2_val);
   let permitted = cs2_val.tag
                 & isCapSealed(cs1_val)
                 & not(isCapSealed(cs2_val))
                 & (cs2_addr == unsigned(cs1_val.otype))
                 & cs2_val.permit_unseal
                 & (cs2_addr >= cs2_base)
-                & (cs2_addr < cs2_base + cs2_length);
+                & (cs2_addr < cs2_top);
   let new_global = cs1_val.global & cs2_val.global;
   let newCap = {unsealCap(cs1_val) with global=new_global};
   C(cd) = clearTagIf(newCap, not(permitted));
