@@ -80,15 +80,9 @@ let  cap_cM_width = sizeof(cap_cM_width)
 /*! Width of B field in bits */
 type cap_B_width : Int = cap_cM_width + 1
 let  cap_B_width = sizeof(cap_B_width)
-/*! Width of ME field in bits */
-type cap_ME_width : Int = 1
-let  cap_ME_width = sizeof(cap_ME_width)
 /*! Width of expanded exponent field in bits */
 type cap_E_width : Int = 5
 let  cap_E_width = sizeof(cap_E_width)
-/*! Width of compressed exponent field in bits */
-type cap_cE_width : Int = 4
-let  cap_cE_width = sizeof(cap_cE_width)
 type cap_addr_width : Int = xlen
 let  cap_addr_width = sizeof(cap_addr_width)
 /*! Cap length width is one larger than address space width in order to 
@@ -107,8 +101,7 @@ struct EncCapability = {
   reserved   : bits(1),
   cperms     : bits(cap_cperms_width),
   cotype     : bits(cap_cotype_width),
-  cE         : bits(cap_cE_width),
-  ME         : bits(cap_ME_width),
+  E          : bits(cap_E_width),
   cM         : bits(cap_cM_width),
   B          : bits(cap_B_width),
   address    : bits(cap_addr_width)
@@ -118,8 +111,7 @@ function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
   reserved   = c[63..63],
   cperms     = c[62..57],
   cotype     = c[56..54],
-  cE         = c[53..50],
-  ME         = c[49..49],
+  E          = c[53..49],
   cM         = c[48..41],
   B          = c[40..32],
   address    = c[31..0]
@@ -129,8 +121,7 @@ function encCapToBits(cap) : EncCapability -> CapBits =
   cap.reserved @
   cap.cperms @
   cap.cotype @
-  cap.cE @
-  cap.ME @
+  cap.E @
   cap.cM @
   cap.B @
   cap.address
@@ -313,8 +304,10 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
   let otype = (if isExe | c.cotype == 0b000 then 0b0 else 0b1) @ c.cotype;
   /* The 4-bit exponent is expanded to 5 bits, using 0xf to encode a cap_max_E
     value that enables representing the entire address space. */
-  let E = if c.cE == zeros(cap_cE_width) then zeros(cap_E_width) else c.ME @ (c.cE - zero_extend(c.ME));
-  let M = if c.cE == zeros(cap_cE_width) then c.ME @ c.cM else 0b1 @ c.cM;
+
+  let E = if c.E == ones(cap_E_width) then zeros(cap_E_width) else c.E;
+  let M = (if c.E == zeros(cap_E_width) then 0b0 else 0b1) @ c.cM;
+
   return struct {
     tag                    = t,
     perm_user0             = perm_user0            ,
@@ -388,8 +381,7 @@ function capToEncCap(cap) : Capability -> EncCapability = {
     cperms = cperms,
     reserved = cap.reserved,
     cotype = cap.otype[2..0], /* truncate otype when compressing */
-    cE = truncate(cap.E, cap_cE_width) + zero_extend(cap.E[cap_cE_width..cap_cE_width]),
-    ME = if cap.E == zeros(cap_E_width) then cap.M[cap_cM_width..cap_cM_width] else cap.E[cap_cE_width..cap_cE_width],
+    E = if cap.E == zeros(cap_E_width) & cap.M[cap_cM_width..cap_cM_width] == 0b1 then ones(cap_E_width) else cap.E,
     cM = truncate(cap.M, cap_cM_width),
     B = cap.B,
     address = cap.address
