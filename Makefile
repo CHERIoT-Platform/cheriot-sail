@@ -147,21 +147,14 @@ SAIL_COQ_SRCS  = $(SAIL_ARCH_SRCS) $(SAIL_SEQ_INST_SRCS) $(SAIL_OTHER_COQ_SRCS)
 
 PLATFORM_OCAML_SRCS = $(addprefix $(SAIL_RISCV_DIR)/ocaml_emulator/,platform.ml platform_impl.ml softfloat.ml riscv_ocaml_sim.ml _tags)
 
-# Attempt to work with either sail from opam or built from repo in SAIL_DIR
-ifneq ($(SAIL_DIR),)
-# Use sail repo in SAIL_DIR
-SAIL:=$(SAIL_DIR)/sail
-export SAIL_DIR
-else
-# Use sail from opam package
-SAIL_DIR=$(shell opam var sail:share)
-SAIL:=sail
-endif
-SAIL_LIB_DIR:=$(SAIL_DIR)/lib
-export SAIL_LIB_DIR
-SAIL_SRC_DIR:=$(SAIL_DIR)/src
+SAIL := sail
 
-LEM_DIR?=$(shell opam var lem:share)
+# <sail install dir>/share/sail
+SAIL_DIR := $(shell $(SAIL) -dir)
+SAIL_LIB_DIR := $(SAIL_DIR)/lib
+SAIL_SRC_DIR := $(SAIL_DIR)/src
+
+LEM_DIR := $(SAIL_DIR)/../lem
 export LEM_DIR
 #Coq BBV library hopefully checked out in directory above us
 BBV_DIR?=../bbv
