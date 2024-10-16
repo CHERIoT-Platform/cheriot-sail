@@ -661,8 +661,8 @@ function clause execute (CTestSubset(rd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
 
-  let (cs2_base, cs2_top) = getCapBounds(cs2_val);
-  let (cs1_base, cs1_top) = getCapBounds(cs1_val);
+  let (cs2_base, cs2_length, cs2_top) = getCapBounds(cs2_val);
+  let (cs1_base, cs1_length, cs1_top) = getCapBounds(cs1_val);
   let cs2_perms = getCapPerms(cs2_val);
   let cs1_perms = getCapPerms(cs1_val);
 
@@ -706,7 +706,7 @@ function clause execute (CSeal(cd, cs1, cs2)) = {
   let cs2_val = C(cs2);
 
   let cs2_addr = unsigned(cs2_val.address);
-  let (cs2_base, cs2_top) = getCapBounds(cs2_val);
+  let (cs2_base, cs2_length, cs2_top) = getCapBounds(cs2_val);
 
   let isPermittedOtype : bool =
     if cs1_val.permit_execute then
@@ -750,7 +750,7 @@ function clause execute (CUnseal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
   let cs2_addr = unsigned(cs2_val.address);
-  let (cs2_base, cs2_top) = getCapBounds(cs2_val);
+  let (cs2_base, cs2_length, cs2_top) = getCapBounds(cs2_val);
   let permitted = cs2_val.tag
                 & isCapSealed(cs1_val)
                 & not(isCapSealed(cs2_val))
