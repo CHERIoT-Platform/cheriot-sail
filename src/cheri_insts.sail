@@ -906,10 +906,22 @@ function clause execute StoreCapImm(cs2, cs1, imm) = {
       match (eares) {
         MemException(e) => { handle_mem_exception(vaddrBits, e); RETIRE_FAIL },
         MemValue(_) => {
+          /*
+           * Store local permission is required of the authority to convey a set
+           * tag to the target memory location if the stored capability is
+           * either...
+           *   - not global, or
+           *   - a backward-arc sentry *and* the capability in c2 (the ABI stack
+           *     pointer register, csp)
+           *
+           * Note that the latter is tautological when cs1 is c2.
+           */
+          let needStoreLocal =
+              not(cs2_val.global)
+            | (  isCapBackwardSentry(cs2_val)  // both is a backward sentry and
+               & C(2).permit_store_local_cap); // csp (c2) has store local perm
           let stored_val =
-              clearTagIf(cs2_val, not (auth_val.permit_store_local_cap) &
-                          ( not(cs2_val.global)
-                          | isCapBackwardSentry(cs2_val) ));
+            clearTagIf(cs2_val, not (auth_val.permit_store_local_cap) & needStoreLocal);
           let res : MemoryOpResult(bool) = mem_write_cap(addr, stored_val, false, false, false);
           match (res) {
             MemValue(true)  => RETIRE_SUCCESS,
