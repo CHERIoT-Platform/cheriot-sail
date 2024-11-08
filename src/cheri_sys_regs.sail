@@ -134,6 +134,8 @@ register MTDC      : Capability
 register MScratchC : Capability
 register MEPCC     : Capability
 
+register BackwardsSentryPseudolocalStores : bool = true
+
 /* Cheri PCC helpers */
 
 function min_instruction_bytes () -> CapAddrInt = {

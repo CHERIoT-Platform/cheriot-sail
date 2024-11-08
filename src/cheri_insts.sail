@@ -119,6 +119,7 @@ function clause execute(CJAL(imm, cd)) = {
     let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
     C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
     nextPC = newPC;
+    update_reverse_sentry_pseudolocality();
     RETIRE_SUCCESS
   }
 }
@@ -184,6 +185,7 @@ function clause execute(CJALR(imm, cs1, cd)) = {
       mstatus->MIE() = 0b0;
     if unsigned(cs1_val.otype) == otype_sentry_ie | unsigned(cs1_val.otype) == otype_sentry_bie then
       mstatus->MIE() = 0b1;
+    update_reverse_sentry_pseudolocality();
     RETIRE_SUCCESS
   }
 }
@@ -912,14 +914,15 @@ function clause execute StoreCapImm(cs2, cs1, imm) = {
            * either...
            *   - not global, or
            *   - a backward-arc sentry *and* the capability in c2 (the ABI stack
-           *     pointer register, csp)
+           *     pointer register, csp) as of the last control-transfer
+           *     instruction or exception bore permit_store_local_cap
            *
            * Note that the latter is tautological when cs1 is c2.
            */
           let needStoreLocal =
               not(cs2_val.global)
             | (  isCapBackwardSentry(cs2_val)  // both is a backward sentry and
-               & C(2).permit_store_local_cap); // csp (c2) has store local perm
+               & BackwardsSentryPseudolocalStores); // we're enforcing pseudolocality
           let stored_val =
             clearTagIf(cs2_val, not (auth_val.permit_store_local_cap) & needStoreLocal);
           let res : MemoryOpResult(bool) = mem_write_cap(addr, stored_val, false, false, false);

@@ -70,10 +70,22 @@ val get_next_pc : unit -> xlenbits
 function get_next_pc() =
   nextPC
 
+function update_reverse_sentry_pseudolocality() -> unit = {
+  BackwardsSentryPseudolocalStores = C(2).permit_store_local_cap;
+}
+
 val set_next_pc : xlenbits -> unit
 function set_next_pc(pc) =
+{
   /* could check for internal errors here on invalid pc */
-  nextPC = pc
+  nextPC = pc;
+
+  /*
+   * take all base PC-setting operations -- base jump and branches and
+   * exceptions alike -- as excuses to snoop on CSP/C(2)
+   */
+  update_reverse_sentry_pseudolocality();
+}
 
 val tick_pc : unit -> unit
 function tick_pc() = {
