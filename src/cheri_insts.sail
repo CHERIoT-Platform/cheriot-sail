@@ -410,7 +410,8 @@ union clause ast = CAndPerm : (regidx, regidx, regidx)
  * previous value and bits 0 to [cap_perms_width]-1 of integer register *rs2*.
  * If the resulting set of permissions cannot be represented by the capability
  * encoding then the result will have a (possibly empty) subset of the ANDed
- * permissions. If *cs1* was sealed then *cd*.**tag** is cleared.
+ * permissions. If *cs1* was sealed and *rs2* codes for clearing anything other
+ * than Permit_Global, then *cd*.**tag** is cleared.
  */
 function clause execute(CAndPerm(cd, cs1, rs2)) = {
   let cs1_val = C(cs1);
@@ -419,8 +420,23 @@ function clause execute(CAndPerm(cd, cs1, rs2)) = {
   let perms = getCapPerms(cs1_val);
   let mask = truncate(rs2_val, cap_perms_width);
 
-  let inCap = clearTagIfSealed(cs1_val);
-  let newCap = setCapPerms(inCap, (perms & mask));
+  let newperms = perms & mask;
+
+  /*
+   * CAndPerm on a sealed cap clears the tag unless the mask is all ones or
+   * has *only* the global permission clear.
+   *
+   * Here, perm_global is a bit vector (in the architectural format used by
+   * [CAndPerm] and [CGetPerm]) of all zeros except for the global permission
+   * bit.  Its formulation here relies on null_cap having no asserted
+   * permissions (which we verify in our SMT properties; see
+   * [prop_null_noperms]).
+   */
+  let perm_global = getCapPerms({ null_cap with global = true });
+  let inCap = clearTagIf(cs1_val,
+                isCapSealed(cs1_val) & ((mask | perm_global) == ones()));
+
+  let newCap = setCapPerms(inCap, newperms);
 
   C(cd) = newCap;
   RETIRE_SUCCESS

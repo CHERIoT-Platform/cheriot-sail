@@ -45,5 +45,9 @@
       Instead, it merely requires that the otype of the sealed input is within bounds to yield a tagged result.
       The address of a sealing-root capability is now meaningful only to \rvcheriasminsnref{CSeal}.
     \item[\ghissue{72},\ghpr{74}] Introduce \rvcheriasminsnref{CSetBoundsRoundDown} to facilitate constructing representable slices of buffers.
+    \item[\ghissue{70},\ghpr{83}] \rvcheriasminsnref{CAndPerm} can now clear \cappermG on sealed caps, so long as that is the only bit being cleared.
+      Previously, this was possible by round-tripping to memory, loading back through an authority lacking \cappermILG(recall \ghpr{44} and \ghissue{14} above), but not directly as a register-to-register operation.
+      Presently, we require that the mask provided to \rvcheriasminsnref{CAndPerm} be all-1s except possibly \cappermG;
+      that is, feeding the result of \rvcheriasminsnref{CGetPerm} on a sealed capability to \rvcheriasminsnref{CAndPerm} will still clear the tag of the result.
   \end{description}
 \end{description}
