@@ -114,7 +114,22 @@ function ext_fetch_check_pc(start_pc, pc) = {
   then {
     /* We need to perform the permission checks only for the first granule. */
     if      not(PCC.tag)
-    then    Ext_FetchAddr_Error(CapEx_TagViolation)
+    then {
+      if MTCC.tag
+      then Ext_FetchAddr_Error(CapEx_TagViolation)
+      else {
+        /*
+         * We're going to infinite loop, installing an untagged MTCC to PCC
+         * and coming right back here.  Much better to just stop now.
+         *
+         * TODO: We'd rather go through the HTIF exit path, but the HTIF
+         * registers are not available to us at this point in the code, and
+         * changing that would require changes in the upstream submodule.
+         * Something to consider when we're rebasing against Zcheripurecap.
+         */
+        not_implemented ("Untagged PCC and MTCC infinite loops; stopping now")
+      }
+    }
     else if isCapSealed(PCC)
     then    internal_error(__FILE__, __LINE__, "PCC should never be sealed")
     else if not(PCC.permit_execute)
