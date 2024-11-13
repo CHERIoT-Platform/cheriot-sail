@@ -765,7 +765,8 @@ function capToString (cap) = {
     ^ (if cap.access_system_regs then "a " else "- ")
     ^ (if cap.permit_seal then "S" else "-")
     ^ (if cap.permit_unseal then "U" else "-")
-    ^ (if cap.perm_user0 then "0)" else "-)")
+    ^ (if cap.perm_user0 then "0" else "-")
+    ^ ")"
 }
 
 /*!
