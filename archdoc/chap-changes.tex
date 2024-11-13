@@ -41,6 +41,12 @@
     Make it explicitly 16-byte aligned and point out the unaligned write spanning \mshwmb{} corner case, which we do not require hardware to handle.
     \item[\ghpr{54}] Create backward sentries for function returns and add more checks in \rvcheriasminsnref{CJAL}
     Because CHERIoT allows manipulating the status of the interrupt through a function call (and function return) by encoding the interrupt type in the otype, the following attack can occur: A caller calling an interrupt-disabling callee can set the return sentry of the callee to the same callee. This means, the callee will call itself on return all the while operating with interrupts disabled. This will lead to infinite repeated calls to the callee with interrupts disabled, violating availability. This attack can be prevented in CHERIoT by adding two new ``backwards-edge'' sentries and adding more checks on \rvcheriasminsnref{CJALR}.
+      \begin{description}
+        \item[\ghissue{85}, \ghpr{86}] Relaxes the original change to better support code outlining,
+          by allowing \rvcheriasminsnref{CJALR} to create unsealed return addresses
+          when its (output) link register is not \asm{\$cra}.
+          See the discussion in \cref{sec:sealing}.
+      \end{description}
     \item[\ghissue{71}, \ghpr{87}] \rvcheriasminsnref{CUnseal} now no longer requires exact equality between sealed input otype and authority address.
       Instead, it merely requires that the otype of the sealed input is within bounds to yield a tagged result.
       The address of a sealing-root capability is now meaningful only to \rvcheriasminsnref{CSeal}.
