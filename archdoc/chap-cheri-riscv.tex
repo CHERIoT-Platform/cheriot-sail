@@ -453,16 +453,16 @@ Two kinds of sealing are supported:
   The capability is unsealed before jumping to it, creating a form of call gate.
   Three kinds of sentry are defined that affect \asm{mstatus.MIE} in different ways: either leaving it unchanged, enabling interrupts or disabling interrupts.
   Jumping to an interrupt enabling or disabling sentry will set or clear \asm{mstatus.MIE} accordingly.
-  Additionally, the link register stored by \insnriscvref{CJAL} and \insnriscvref{CJALR} is sealed as a sentry with the current interrupt status: if MIE is set it will produce an interrupt enabling sentry and if it is cleared it will produce an interrupt disabling sentry.
+  Additionally, if the link register is \asm{\$cra}, the capability stored by \insnriscvref{CJAL} and \insnriscvref{CJALR} is sealed as a sentry with the current interrupt status: if MIE is set it will produce an interrupt enabling sentry and if it is cleared it will produce an interrupt disabling sentry.
 \end{description}
 The \cotype{} field uses the following values:
 \begin{description}
   \item[0] unsealed
-  \item[1] sealed as sentry
-  \item[2] sealed as interrupt disabling sentry
-  \item[3] sealed as interrupt enabling sentry
-  \item[4] sealed as backward interrupt disabling sentry
-  \item[5] sealed as backward interrupt enabling sentry
+  \item[1] sealed as interrupt inheriting forward sentry
+  \item[2] sealed as interrupt disabling forward sentry
+  \item[3] sealed as interrupt enabling forward sentry
+  \item[4] sealed as interrupt disabling backward sentry
+  \item[5] sealed as interrupt enabling backward sentry
   \item[6-7] executable capability sealed with given \cotype{}
   \item[8] reserved (due to encoding)
   \item[9-15] non-executable capability sealed with given \cotype{}
@@ -477,15 +477,54 @@ Because CHERIoT allows manipulating the status of the interrupt through a functi
   \footnotesize
   \begin{tabular}{|c|c|c|c|}
     \hline
-    \asm{cs1} & \asm{cd} & Used for & Valid \cotype{}s \\
+    \asm{cs1} & \asm{cd} & Used for & Valid \asm{cs1} \cotype{}s \\
     \hline
-    \asm{\$cra} & \asm{\$cnull} & Function return & Return sentries $(4, 5)$\\
-    $\ne$ \asm{\$cra} & \asm{\$cnull} & Tail call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
-    any & $\not\in \{ \text{\asm{\$cnull}}, \text{\asm{\$cra}} \}$ & Function call & Unsealed or interrupt inheriting forward sentry $(0, 1)$\\
+    \asm{\$cra} & \asm{\$cnull} & Function return & Backward sentries $(4, 5)$\\
+    $\ne$ \asm{\$cra} & \asm{\$cnull} & Tail call & Unsealed or IRQ inheriting forward sentry $(0, 1)$\\
+    any & $\not\in \{ \text{\asm{\$cnull}}, \text{\asm{\$cra}} \}$ & Code outlining & Unsealed or IRQ inheriting forward sentry $(0, 1)$\\
     any & \asm{\$cra} & Function call & Unsealed or forward sentries $(0, 1, 2, 3)$\\
     \hline
   \end{tabular}
 \end{center}
+
+\noindent Both \insnriscvref{CJAL} and \insnriscvref{CJALR} with non-\asm{\$cnull} \asm{cd} operands
+determine the \cotype{} of the generated capability as a function of the \asm{cd} target itself:
+
+\begin{center}
+  \footnotesize
+  \begin{tabular}{|c|c|}
+    \hline
+    \asm{cd} & Generated \asm{cd} \cotype{} \\
+    \hline
+    $\not\in \{ \text{\asm{\$cnull}}, \text{\asm{\$cra}} \}$ & 0 (unsealed) \\
+    \asm{\$cra} & 4, 5 (backward sentries, caller's IRQ disposition) \\
+    \hline
+  \end{tabular}
+\end{center}
+
+Thus, ordinary function calls, for which the calling convention is to use \asm{\$cra} as the return register,
+can call any unsealed (executable) capability or forward sentry,
+and will always create backward sentries, suitable for the function return case.
+Tail calls, which must preserve \asm{\$cra} for their callee and do not generate return capabilities of their own,
+are also permitted.
+Last, code \emph{outlining}, the dual of code \emph{inlining}, is supported;
+outlined code may use a specialized calling convention, not using \asm{\$cra} to exit
+(so return from such outlined code looks like a ``tail call'' in the above table),
+especially in cases where the outlined code must preserve \asm{\$cra} for its caller.
+In this case, the \insnriscvref{CJAL} or \insnriscvref{CJALR} used to enter the outlined code
+will have a \asm{cd} that is neither \asm{\$cnull} nor \asm{\$cra},
+and so will create \emph{unsealed} return capabilities,
+so that all forward sentries in the system must have been built by the RTOS loader.
+(Outlined code that \emph{does} use \asm{\$cra} as its return address will also function correctly,
+as if it were an ordinary function call and return.)
+
+Given the overloading of the single \insnriscvref{CJALR} instruction,
+with register selector operands selecting between multiple semantics,
+compilers \emph{must} be careful to use matching entry and exit \insnriscvref{CJALR}s.
+For example, entering a function with a \asm{\$cra} link register,
+transfering the contents of \asm{\$cra} to another register,
+and then ``tail calling'' through that latter register will not work on CHERIoT,
+even though analogous code would have worked on base RISC-V.
 
 \subsection{Capability bounds}
 \label{sec:bounds}

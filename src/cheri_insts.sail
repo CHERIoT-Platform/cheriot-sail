@@ -116,8 +116,16 @@ function clause execute(CJAL(imm, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
-    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+
+    if cd == ra then {
+      /* When writing to ra, generate a sealed return capability. */
+      let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
+      C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+    } else {
+      /* Generate an unsealed return capability. */
+      C(cd) = linkCap;
+    };
+
     nextPC = newPC;
     RETIRE_SUCCESS
   }
@@ -176,8 +184,22 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     let (success, linkCap) = setCapAddr(PCC, nextPC); /* Note that nextPC accounts for compressed instructions */
     assert(success, "Link cap should always be representable.");
     assert(not (isCapSealed(linkCap)), "Link cap should always be unsealed");
-    let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
-    C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+
+    if cd == ra then {
+      /*
+       * When writing to ra, generate a sealed return capability.  We can get
+       * here with cs1 unsealed or any forward sentry type.
+       */
+      let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
+      C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
+    } else {
+      /*
+       * Generate an unsealed return capability.  From the conditions above, it
+       * must be the case that cs1 is unsealed or a forward inheriting sentry.
+       */
+      C(cd) = linkCap;
+    };
+
     nextPC = newPC;
     nextPCC = unsealCap(cs1_val);
     if unsigned(cs1_val.otype) == otype_sentry_id | unsigned(cs1_val.otype) == otype_sentry_bid then
