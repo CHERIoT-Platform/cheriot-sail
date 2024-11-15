@@ -743,21 +743,19 @@ union clause ast = CUnseal : (regidx, regidx, regidx)
  * Capability register *cd* is replaced with capability register *cs1* and is
  * unsealed, using capability register *cs2* as the authority for the unsealing
  * operation. If *cs2*.**perms** does not grant **Global** then *cd*.**perms**
- * is stripped of **Global**. If *cs2* is unable to authorize the unsealing,
+ * is stripped of **Global**. If *cs2* is unable to authorize the unsealing
+ * (because *cs1*.**otype** is not within the bounsd of *cs2*),
  * the **tag** field of *cd* is cleared.
  */
 function clause execute (CUnseal(cd, cs1, cs2)) = {
   let cs1_val = C(cs1);
   let cs2_val = C(cs2);
   let cs2_addr = unsigned(cs2_val.address);
-  let (cs2_base, cs2_top) = getCapBounds(cs2_val);
   let permitted = cs2_val.tag
                 & isCapSealed(cs1_val)
                 & not(isCapSealed(cs2_val))
-                & (cs2_addr == unsigned(cs1_val.otype))
-                & cs2_val.permit_unseal
-                & (cs2_addr >= cs2_base)
-                & (cs2_addr < cs2_top);
+                & inCapBounds(cs2_val, zero_extend(cs1_val.otype), 1)
+                & cs2_val.permit_unseal;
   let new_global = cs1_val.global & cs2_val.global;
   let newCap = {unsealCap(cs1_val) with global=new_global};
   C(cd) = clearTagIf(newCap, not(permitted));
