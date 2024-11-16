@@ -623,36 +623,10 @@ function clause execute (CSetBoundsRoundDown(cd, cs1, rs2)) = {
   let rs2_val = X(rs2);
 
   let newBase = cs1_val.address;
-
-  /*
-   * The maximum possible representable length given the new base is a full
-   * mantissa width of 1s followed by 0s with its least significant 1 aligned
-   * to the least significant 1 in the base address.
-   */
-  let maxLen = sail_zero_extend(sail_ones(cap_mantissa_width), sizeof(xlen))
-               << LowestSetBit(newBase);
-
-  /*
-   * Ensure that the requested length is representable by making sure that
-   * it fits within a mantissa width, rounding down by dropping any lower
-   * bits.  This is equivalent to masking by a mantissa width of 1s with its
-   * MSB aligned to the highest set bit in the requested length.
-   */
-  let rawReqLen = X(rs2);
-  let reqLen = rawReqLen & getRepresentableAlignmentMask(rawReqLen);
-
-  /*
-   * If the rounded-down requested length is larger than what we can
-   * represent given the new base address, use the maximum representable length
-   * instead.  If smaller, use it directly, knowing that it is representable
-   * due to having been rounded down.
-   */
-  let newLen = if unsigned(reqLen) > unsigned(maxLen) then maxLen else reqLen;
-
+  let newLen = rs2_val;
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
   let inCap = clearTagIfSealed(cs1_val);
-  let (exact, newCap) = setCapBounds(inCap, newBase, newLen);
-  assert(exact, "CSetBoundsRoundDown must always result in an exact cap");
+  let newCap = setCapBoundsRoundDown(inCap, newBase, newLen);
   C(cd) = clearTagIf(newCap, not(inBounds));
   RETIRE_SUCCESS
 }
