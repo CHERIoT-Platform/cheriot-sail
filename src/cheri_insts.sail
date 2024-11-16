@@ -586,7 +586,7 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   let rs2_val = X(rs2);
 
   let newBase = cs1_val.address;
-  let newLen = X(rs2);
+  let newLen = rs2_val;
   let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
 
   let inCap = clearTagIfSealed(cs1_val);
