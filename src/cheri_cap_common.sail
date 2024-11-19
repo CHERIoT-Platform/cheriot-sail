@@ -488,6 +488,57 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
   (exact, newCap)
 }
 
+/* XXX this should go in prelude.sail but putting here for now to avoid submodule faff */
+val count_trailing_zeros : forall 'N, 'N >=0 . bits('N) -> range(0, 'N)
+function count_trailing_zeros(bv) = {
+  foreach(i from 0 to ('N - 1) by 1 in inc) {
+    if bv[i] == bitone then {
+      return i;
+    }
+  };
+  'N
+}
+
+/*!
+ * Returns cap with the address and base set to the given base (exactly) and the
+ * length set to the largest value less than or equal to given length that can
+ * be represented while preserving the alignment of the base.
+ */
+function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, CapAddrBits) -> Capability = {
+  let ext_base = 0b0 @ base;
+  /* Compute new top, note extra bit in case of overflow */
+  let top : CapLenBits = ext_base + (0b0 @ length);
+  /* Find smallest exponent that can represent required length. */
+  let e_l : range(0, 23) = 23 - count_leading_zeros(truncateLSB(length, 23));
+  /* What is the required alignment of base? */
+  let e_b = count_trailing_zeros(base);
+
+  /*
+   * We're going to return something below the "band gap" in the encoding, so
+   * find the largest exponent that's: below the band gap, less than or equal to
+   * what's required by the length (e), and less than or equal to what's
+   * required by the base (e_b).
+   */
+  let E = min(14, min(e_l, e_b));
+
+  /* Extract B for this E */
+  let B = truncate(base >> E, cap_mantissa_width);
+
+  let T = if (e_l > e_b) | (e_l > 14) then {
+    /*
+     * Base unrepresentable using chosen e_l or length over long; choose a
+     * smaller exponent, E, and make a maximum length capability for that.
+     */
+    B - 1;
+  } else {
+    /* Extract T for E as is */
+    truncate(top >> e_l, cap_mantissa_width)
+  };
+
+  /* Return the cap with new bounds and address */
+  {cap with address=base, E=to_bits(cap_E_width, E), B=B, T=T}
+}
+
 function getCapPerms(cap) : Capability -> CapPermsBits = [
   bool_to_bit(cap.perm_user0),
   bool_to_bit(cap.permit_seal),

@@ -596,6 +596,42 @@ function clause execute (CSetBoundsExact(cd, cs1, rs2)) = {
   RETIRE_SUCCESS
 }
 
+union clause ast = CSetBoundsRoundDown : (regidx, regidx, regidx)
+/*!
+ * Capability register *cd* is set to the capability in register *cs1* with its
+ * **base** field replaced with *cs1*.**address** and its **length** field
+ * replaced with a representable value no larger than the value in the integer
+ * register *rs2*.  That **length** will be nonzero if *rs2* is nonzero.
+ *
+ * ## Notes
+ *
+ *  - As with [CSetBounds], the implementation here does the bounds check on the
+ *    *requested* bounds.  This is less interesting here than there because the
+ *    results of [setCapBoundsRoundDown] are always a subset of the requested
+ *    range.
+ *
+ *  - The present implementation returns the largest representable span from the
+ *    given base (*cs1*.**address**) whose length is no more than *rs2*, except
+ *    that it will not return anything larger than the largest capability
+ *    representable with an exponent of 14.  This caveat simplifies handling of
+ *    very large capabilities, which we do not expect to be used with this
+ *    instruction in practice.  However, we may revisit this decision in future
+ *    editions; software should depend only on the result being representable
+ *    and of non-zero length (unless *rs2* was zero).
+ */
+function clause execute (CSetBoundsRoundDown(cd, cs1, rs2)) = {
+  let cs1_val = C(cs1);
+  let rs2_val = X(rs2);
+
+  let newBase = cs1_val.address;
+  let newLen = rs2_val;
+  let inBounds = inCapBounds(cs1_val, newBase, unsigned(newLen));
+  let inCap = clearTagIfSealed(cs1_val);
+  let newCap = setCapBoundsRoundDown(inCap, newBase, newLen);
+  C(cd) = clearTagIf(newCap, not(inBounds));
+  RETIRE_SUCCESS
+}
+
 union clause ast = CClearTag : (regidx, regidx)
 /*!
  * Capability register *cd* is replaced with the contents of *cs1*, with
@@ -976,6 +1012,7 @@ mapping clause encdec = CSetHigh(cd, cs1, rs2)    if (haveXcheri()) <-> 0b001011
 mapping clause encdec = CIncAddr(cd, cs1, rs2)    if (haveXcheri()) <-> 0b0010001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBounds(cd, cs1, rs2)  if (haveXcheri()) <-> 0b0001000 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 mapping clause encdec = CSetBoundsExact(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001001 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
+mapping clause encdec = CSetBoundsRoundDown(cd, cs1, rs2) if (haveXcheri()) <-> 0b0001010 @ rs2 @ cs1 @ 0b000 @ cd @ 0b1011011 if (haveXcheri())
 
 mapping clause encdec = CSub(rd, cs1, cs2)        if (haveXcheri()) <-> 0b0010100 @ cs2 @ cs1 @ 0b000 @ rd @ 0b1011011 if (haveXcheri())
 
@@ -995,6 +1032,7 @@ mapping clause assembly = CSetHigh(cd, cs1, rs2)  <-> "csethigh"    ^ spc() ^ ca
 mapping clause assembly = CIncAddr(cd, cs1, rs2)   <-> "cincaddr" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBounds(cd, cs1, rs2) <-> "csetbounds" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 mapping clause assembly = CSetBoundsExact(cd, cs1, rs2) <-> "csetboundsexact" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
+mapping clause assembly = CSetBoundsRoundDown(cd, cs1, rs2) <-> "csetboundsrounddown" ^ spc() ^ cap_reg_name(cd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ reg_name(rs2)
 
 mapping clause assembly = CSub(rd, cs1, cs2)      <-> "csub"        ^ spc() ^ reg_name(rd) ^ sep() ^ cap_reg_name(cs1) ^ sep() ^ cap_reg_name(cs2)
 
