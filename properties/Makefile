@@ -7,6 +7,7 @@ SRCS+=${TOP}/src/cheri_types.sail
 SRCS+=${TOP}/src/cheri_cap_common.sail
 SRCS+=proplib.sail
 SRCS+=props.sail
+SRCS+=props_setboundsrounddown.sail
 
 all: generate_smt run_smt
 
