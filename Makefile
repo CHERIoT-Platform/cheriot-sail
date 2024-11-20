@@ -318,7 +318,7 @@ c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SA
 	$(CC) -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
 
 latex: $(SAIL_SRCS) Makefile
-	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS) properties/props.sail
+	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS) properties/proplib.sail properties/props.sail
 
 generated_definitions/isabelle/$(ARCH)/ROOT: handwritten_support/ROOT
 	mkdir -p generated_definitions/isabelle/$(ARCH)
