@@ -19,7 +19,9 @@ $property
  * Check that null_cap as defined in the Sail encodes to all zeros.
  */
 function prop_nullzero() -> bool = {
-    capEncodable(null_cap) & (capToBits(null_cap) == zeros()) & (null_cap.tag == false)
+    capEncodable(null_cap)
+  & (capToBits(null_cap) == zeros())
+  & (null_cap.tag == false)
 }
 
 $property
@@ -31,19 +33,22 @@ function prop_null_noperms() -> bool = {
 }
 
 $property
-function prop_mem_root() -> bool = {
-    capEncodable(root_cap_mem)
-}
+/*!
+ * Check that [root_cap_mem] is encodable
+ */
+function prop_mem_root() -> bool = { capEncodable(root_cap_mem) }
 
 $property
-function prop_exe_root() -> bool = {
-    capEncodable(root_cap_exe)
-}
+/*!
+ * Check that [root_cap_exe] is encodable
+ */
+function prop_exe_root() -> bool = { capEncodable(root_cap_exe) }
 
 $property
-function prop_seal_root() -> bool = {
-    capEncodable(root_cap_seal)
-}
+/*!
+ * Check that [root_cap_seal] is encodable
+ */
+function prop_seal_root() -> bool = { capEncodable(root_cap_seal) }
 
 $property
 /*!
