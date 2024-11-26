@@ -23,6 +23,14 @@ function prop_nullzero() -> bool = {
 }
 
 $property
+/*!
+ * Check that null_cap has no set permission bits.
+ */
+function prop_null_noperms() -> bool = {
+  getCapPerms(null_cap) == zeros()
+}
+
+$property
 function prop_mem_root() -> bool = {
     capEncodable(root_cap_mem)
 }
