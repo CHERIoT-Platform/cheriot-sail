@@ -42,34 +42,30 @@ check important properties of the capability encoding as implemented in Sail.
 
 Some helper functions are used in the Sail properties:
 
-\medskip
-\sailRISCVfn{encodeDecode}
+\begin{itemize}
+  \item \sailRISCVfn{encodeDecode}
+  \item \sailRISCVfn{capEncodable}
+\end{itemize}
 
-\medskip
-\sailRISCVfn{capEncodable}
+The following nullary properties of the encoding hold.
+
+\begin{itemize}
+  \item \sailRISCVfn{prop\_nullzero}
+  \item \sailRISCVfn{prop\_null\_noperms}
+  \item \sailRISCVfn{prop\_mem\_root}
+  \item \sailRISCVfn{prop\_exe\_root}
+  \item \sailRISCVfn{prop\_seal\_root}
+\end{itemize}
 
 The following functions have been checked to return true for all inputs.
 
-\medskip
-\sailRISCVfn{prop\_decEnc}
-
-\medskip
-\sailRISCVfn{prop\_andperms}
-
-\medskip
-\sailRISCVfn{prop\_setbounds}
-
-\medskip
-\sailRISCVfn{prop\_setbounds\_monotonic}
-
-\medskip
-\sailRISCVfn{prop\_setaddr}
-
-\medskip
-\sailRISCVfn{prop\_repbounds\_c}
-
-\medskip
-\sailRISCVfn{prop\_repbounds}
-
-\medskip
-\sailRISCVfn{prop\_crrl\_cram}
+\begin{itemize}
+  \item \sailRISCVfn{prop\_decEnc}
+  \item \sailRISCVfn{prop\_andperms}
+  \item \sailRISCVfn{prop\_setbounds}
+  \item \sailRISCVfn{prop\_setbounds\_monotonic}
+  \item \sailRISCVfn{prop\_setaddr}
+  \item \sailRISCVfn{prop\_repbounds\_c}
+  \item \sailRISCVfn{prop\_repbounds}
+  \item \sailRISCVfn{prop\_crrl\_cram}
+\end{itemize}
