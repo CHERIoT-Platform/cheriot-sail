@@ -456,7 +456,7 @@ function clause execute(CAndPerm(cd, cs1, rs2)) = {
    */
   let perm_global = getCapPerms({ null_cap with global = true });
   let inCap = clearTagIf(cs1_val,
-                isCapSealed(cs1_val) & ((mask | perm_global) == ones()));
+                isCapSealed(cs1_val) & ((mask | perm_global) != ones()));
 
   let newCap = setCapPerms(inCap, newperms);
 
