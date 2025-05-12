@@ -115,7 +115,7 @@ as the base address:\\
 			\bitbox{5}{rd}
 			\bitbox{7}{0x3}
 		\end{bytefield}
-		\rvcheriasmfmt{CL[BHW][U] rd, cs1, imm}
+		\rvcheriasmfmt{CL[BHW][U] rd, imm(cs1)}
 
 		\begin{bytefield}{32}
 			\bitbox{7}{imm[11:5]}
@@ -125,29 +125,29 @@ as the base address:\\
 			\bitbox{5}{imm[4:0]}
 			\bitbox{7}{0x23}
 		\end{bytefield}
-		\rvcheriasmfmt{CS[BHW] rs2, cs1, imm}\\
+		\rvcheriasmfmt{CS[BHW] rs2, imm(cs1)}\\
 
 The RV64 instructions \texttt{LD} and \texttt{SD} are reused to behave as load capability (\texttt{LC}) and store capability (\texttt{SC}) respectively:\\
 
 		\begin{bytefield}{32}
 			\bitheader[endianness=big]{0,6,7,11,12,14,15,19,20,24,25,31}\\
 			\bitbox{12}{imm}
-			\bitbox{5}{rs1}
+			\bitbox{5}{cs1}
 			\bitbox{3}{0x3}
 			\bitbox{5}{cd}
 			\bitbox{7}{0x3}
 		\end{bytefield}
-		\rvcheriasmfmt[RV32]{\rvcheriasminsnref{CLC} cd, rs1, imm}
+		\rvcheriasmfmt[RV32]{\rvcheriasminsnref{CLC} cd, imm(cs1)}
 
 		\begin{bytefield}{32}
 			\bitbox{7}{imm[11:5]}
 			\bitbox{5}{cs2}
-			\bitbox{5}{rs1}
+			\bitbox{5}{cs1}
 			\bitbox{3}{0x3}
 			\bitbox{5}{imm[4:0]}
 			\bitbox{7}{0x23}
 		\end{bytefield}
-		\rvcheriasmfmt[RV32]{\rvcheriasminsnref{CSC} cs2, rs1, imm}\\
+		\rvcheriasmfmt[RV32]{\rvcheriasminsnref{CSC} cs2, imm(cs1)}\\
 
 % 	\optype{Atomic Memory-Access}
 
