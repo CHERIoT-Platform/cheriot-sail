@@ -219,7 +219,8 @@ function prop_repbounds(reqBase : CapAddrBits, reqLen : CapAddrBits, newAddr : C
     let saneTop = reqTop <=_u 0b1@0x00000000;
     let (b, t) = getCapBoundsBits(c);
     let (representable, newCap) = setCapAddr(c, newAddr);
-    let repTop = (0b0 @ b) + ((to_bits(33,1) << unsigned(c.E)) << 9);
+    let e = if c.E == 0b11111 then 0 else unsigned(c.E);
+    let repTop = (0b0 @ b) + ((to_bits(33,1) << e) << 9);
     /* The representable bounds check: either E is max or address is in range */
     let inRepBounds = c.E == cap_max_E_bits | ((b <=_u newAddr) & ((0b0 @ newAddr) <_u repTop));
     /* For any sane capability the inRepBounds check matches the flag returned 
