@@ -24,6 +24,15 @@ function prop_nullzero() -> bool = {
   & (null_cap.tag == false)
 }
 
+function hasMaxBounds(c: Capability) -> bool = {
+    let (b, t) = getCapBounds(c) in
+    b == 0 & t == pow2(32)
+}
+
+function validateRootCap(c : Capability) -> bool = {
+    c.tag == true & capEncodable(c) & hasMaxBounds(c) & not(isCapSealed(c))
+}
+
 $property
 /*!
  * Check that null_cap has no set permission bits.
@@ -36,19 +45,19 @@ $property
 /*!
  * Check that [root_cap_mem] is encodable
  */
-function prop_mem_root() -> bool = { capEncodable(root_cap_mem) }
+function prop_mem_root() -> bool = { validateRootCap(root_cap_mem) }
 
 $property
 /*!
  * Check that [root_cap_exe] is encodable
  */
-function prop_exe_root() -> bool = { capEncodable(root_cap_exe) }
+function prop_exe_root() -> bool = { validateRootCap(root_cap_exe) }
 
 $property
 /*!
  * Check that [root_cap_seal] is encodable
  */
-function prop_seal_root() -> bool = { capEncodable(root_cap_seal) }
+function prop_seal_root() -> bool = { validateRootCap(root_cap_seal) }
 
 $property
 /*!
