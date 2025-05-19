@@ -88,7 +88,9 @@ function prop_decEnc2(c : CapBits) -> bool  = {
     (c == c2)
 }
 
-$property
+// Disabled as currently triggers a performance bug in Sail SMT generation
+// See https://github.com/rems-project/sail/issues/783
+// $property
 /*!
  * THIS checks that for any capability and permissions mask [CAndPerm]
  * will result in a capability whose permissions are a subset of the original
