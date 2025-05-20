@@ -10,8 +10,8 @@
 function prop_base_lteq_top(b : CapBits) -> bool = {
     let c = capBitsToCapability(false, b);
     let (base, top) = getCapBoundsBits(c);
-    a_top = c.address >> (unsigned(c.E) + cap_mantissa_width);
-    (a_top != zeros() | (c.B <_u c.T)) --> ((0b0 @ base) <=_u top)
+    let a_top = c.address >> (unsigned(c.E) + cap_mantissa_width);
+    (a_top != zeros() | (c.B <_u (c.B + c.L))) --> ((0b0 @ base) <=_u top)
 }
 
 $property
@@ -83,7 +83,7 @@ function prop_decEnc2(c : CapBits) -> bool  = {
     let (base, top) = getCapBoundsBits(cap);
     let newB = truncate(base >> unsigned(cap.E), cap_mantissa_width);
     let newT = truncate(top >> unsigned(cap.E), cap_mantissa_width);
-    let cap2 = {cap with B=newB, T=newT};
+    let cap2 = {cap with B=newB, L=newT-newB};
     let c2 = capToBits(cap2);
     (c == c2)
 }

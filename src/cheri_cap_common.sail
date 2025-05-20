@@ -74,7 +74,7 @@ type cap_otype_width : Int = 4
 let  cap_otype_width = sizeof(cap_otype_width)
 /*! Width of compressed otype field in bits */
 type cap_cotype_width : Int = 3
-/*! Width of T and B field in bits */
+/*! Width of L and B field in bits */
 type cap_mantissa_width : Int = 9
 let  cap_mantissa_width = sizeof(cap_mantissa_width)
 /*! Width of expanded exponent field in bits */
@@ -101,7 +101,7 @@ struct EncCapability = {
   cperms     : bits(cap_cperms_width),
   cotype     : bits(cap_cotype_width),
   cE         : bits(cap_cE_width),
-  T          : bits(cap_mantissa_width - 1),
+  L          : bits(cap_mantissa_width - 1),
   B          : bits(cap_mantissa_width),
   address    : bits(cap_addr_width)
 }
@@ -111,7 +111,7 @@ function capBitsToEncCapability(c) : CapBits -> EncCapability = struct {
   cperms     = c[62..57],
   cotype     = c[56..54],
   cE         = c[53..49],
-  T          = c[48..41],
+  L          = c[48..41],
   B          = c[40..32],
   address    = c[31..0]
 }
@@ -121,7 +121,7 @@ function encCapToBits(cap) : EncCapability -> CapBits =
   cap.cperms @
   cap.cotype @
   cap.cE @
-  cap.T @
+  cap.L @
   cap.B @
   cap.address
 
@@ -142,8 +142,8 @@ type CapPermsBits = bits(cap_perms_width)
 type cap_max_E : Int = 24
 let cap_max_E = sizeof(cap_max_E)
 let cap_max_E_bits = to_bits(cap_E_width, sizeof(cap_max_E))
-/* Value for T field that represents max value of top (2**32) when used with cap_max_E. */
-let cap_reset_T = 0b1 @ zeros(cap_mantissa_width - 1)
+/* Value for L field that represents max value of length (2**32) when used with cap_max_E. */
+let cap_reset_L = 0b1 @ zeros(cap_mantissa_width - 1)
 
 /*!
  * THIS represents a partially decompressed capability. The
@@ -167,7 +167,7 @@ struct Capability = {
   reserved               : bits(1),
   E                      : bits(cap_E_width),
   B                      : bits(cap_mantissa_width),
-  T                      : bits(cap_mantissa_width),
+  L                      : bits(cap_mantissa_width),
   otype                  : bits(cap_otype_width),
   address                : bits(cap_addr_width)
 }
@@ -189,7 +189,7 @@ let null_cap : Capability = struct {
   global                 = false,
   reserved               = zeros(),
   B                      = zeros(),
-  T                      = zeros(),
+  L                      = zeros(),
   E                      = zeros(),
   otype                  = to_bits(cap_otype_width, otype_unsealed),
   address                = zeros()
@@ -202,7 +202,7 @@ let null_cap : Capability = struct {
 let max_bounds_cap : Capability = {
   null_cap with
   E                      = cap_max_E_bits,
-  T                      = cap_reset_T,
+  L                      = cap_reset_L,
   tag                    = true,
   global                 = true
 }
@@ -306,14 +306,7 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
   let E = if denorm then 0b00000 else c.cE ^ 0b11111;
   // Implicit top bit of length
   let Ltop = if denorm then 0b0 else 0b1;
-  // Carry-in for calculation of implicit top-bit of T:
-  //  must be one if low bits of T are less than those of B
-  // i.e. if there was an overflow when adding those bits of length to base.
-  let Tcin = if c.T <_u truncate(c.B, cap_mantissa_width - 1) then 0b1 else 0b0;
-  let Btop = truncateLSB(c.B, 1);
-  // Calculate the implicit top bit of T
-  let Ttop = Btop ^ Tcin ^ Ltop;
-  let T = Ttop @ c.T;
+  let L = Ltop @ c.L;
 
   return struct {
     tag                    = t,
@@ -332,7 +325,7 @@ function encCapabilityToCapability(t,c) : (bool, EncCapability) -> Capability = 
     reserved               = c.reserved,
     E                      = E,
     B                      = c.B,
-    T                      = T,
+    L                      = L,
     otype                  = otype,
     address                = c.address
   }
@@ -388,8 +381,7 @@ function capToEncCap(cap) : Capability -> EncCapability = {
     cperms[0] = bool_to_bit(cap.permit_unseal);
   };
 
-  let L = cap.T - cap.B;
-  let denorm = (cap.E == zeros()) & (truncateLSB(L, 1) == 0b0);
+  let denorm = truncateLSB(cap.L, 1) == 0b0;
   let encE = if denorm then 0b00000 else (cap.E ^ 0b11111);
 
   return struct {
@@ -397,7 +389,7 @@ function capToEncCap(cap) : Capability -> EncCapability = {
     reserved = cap.reserved,
     cotype = cap.otype[2..0], /* truncate otype when compressing */
     cE = encE,
-    T = truncate(cap.T, cap_mantissa_width - 1),
+    L = truncate(cap.L, cap_mantissa_width - 1),
     B = cap.B,
     address = cap.address
   };
@@ -421,19 +413,15 @@ function getCapBoundsBits(c) : Capability -> (CapAddrBits, CapLenBits) = {
   let a_mid = truncate(a >> E, cap_mantissa_width);
   /* If a_mid is less than B then a must be in region above base */
   let a_hi = if a_mid <_u c.B then 1 else 0;
-  /* If T is less than B then top must be in region above base */
-  let t_hi = if c.T <_u c.B then 1 else 0;
   /* If address is in region above base then we need to subtract one from a_top
     to get top bits of base */
   let c_b = 0 - a_hi;
-  /* The correction for top can be -1, 0, or 1 depending on whether a and t lie
-    in the same region and, if not, which is in the high region. This boils down
-    to a subtraction. */
-  let c_t = t_hi - a_hi;
-  let a_top = a >> (E + cap_mantissa_width);
+  let b_top = (a >> (E + cap_mantissa_width)) + c_b;
+  let b_top_mid= b_top @ c.B;
+  let top = b_top_mid + zero_extend(c.L);
   /* Finally reconstruct the base and top using the corrections and truncate. */
-  let base : CapAddrBits = truncate((a_top + c_b) @ c.B @ zeros(E), cap_addr_width);
-  let top : CapLenBits  = truncate((a_top + c_t) @ c.T @ zeros(E), cap_len_width);
+  let base : CapAddrBits = truncate(b_top_mid @ zeros(E), cap_addr_width);
+  let top : CapLenBits  = truncate(top @ zeros(E), cap_len_width);
   (base, top)
 }
 // XXX Not sure whether we need something like this.
@@ -492,8 +480,9 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
       T = T + 1;
     };
   };
+  let L = T - B;
   /* Return cap with new bounds */
-  let newCap = {cap with address=base, E=to_bits(cap_E_width, e_l), B=truncate(B, cap_mantissa_width), T=truncate(T, cap_mantissa_width)};
+  let newCap = {cap with address=base, E=to_bits(cap_E_width, e_l), B=truncate(B, cap_mantissa_width), L=truncate(L, cap_mantissa_width)};
   lostSignificantBase = unsigned(ext_base & maskLo) != 0;
   let exact = not(lostSignificantBase | lostSignificantTop);
   (exact, newCap)
@@ -525,18 +514,19 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
   let e_b = count_trailing_zeros(base);
   /* Extract B and T for initial e_l */
   var B = truncate(base >> e_l, cap_mantissa_width);
-  var T = truncate(top >> e_l, cap_mantissa_width);
+  let T = truncate(top >> e_l, cap_mantissa_width);
+  var L = T - B;
   if e_l > e_b then {
     /* base unrepresentable using chosen e -- chose a smaller one and make a maximum length capability for that e */
     e_l = e_b;
     /* Extract B for new e_l */
     B = truncate(base >> e_l, cap_mantissa_width);
     /* This will make a max length cap for given E, B */
-    T = B - 1;
+    L = ones();
   };
 
   /* Return the cap with new bounds and address */
-  {cap with address=base, E=to_bits(cap_E_width, e_l), B=B, T=T}
+  {cap with address=base, E=to_bits(cap_E_width, e_l), B=B, L=L}
 }
 
 function getCapPerms(cap) : Capability -> CapPermsBits = [
