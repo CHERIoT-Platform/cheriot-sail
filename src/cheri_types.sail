@@ -66,6 +66,7 @@ let otype_sentry_id = 2 /* sentry disabling interrupts */
 let otype_sentry_ie = 3 /* sentry enabling interrupts */
 let otype_sentry_bid = 4 /* backward sentry disabling interrupts */
 let otype_sentry_bie = 5 /* backward sentry enabling interrupts */
+let otype_sentry_b   = 6 /* backward sentry inheriting */
 
 enum CPtrCmpOp = {
   CEQ,
