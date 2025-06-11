@@ -614,15 +614,26 @@ function isCapForwardControlSentry(cap) =
   }
 
 /*!
- * Returns true if the given capability has one of the backward sentry otypes, otherwise false.
+ * Returns true if the given capability has one of the IRQ-setting backward sentry otypes, otherwise false.
  */
-val isCapBackwardSentry : Capability -> bool
-function isCapBackwardSentry(cap) =
+val isCapBackwardNoninheritingSentry : Capability -> bool
+function isCapBackwardNoninheritingSentry(cap) =
   match unsigned(cap.otype) {
     otype if otype == otype_sentry_bid => true,
     otype if otype == otype_sentry_bie => true,
     _  => false
   }
+
+/*!
+ * Returns true iff the given capability is an IRQ-inheriting backward sentry.
+ */
+val isCapBackwardInheritingSentry : Capability -> bool
+function isCapBackwardInheritingSentry(cap) =
+  match unsigned(cap.otype) {
+    otype if otype == otype_sentry_b => true,
+    _  => false
+  }
+
 
 /*!
  * Returns true if the given capability has one of the forward interrupt-inherited sentry otype, otherwise false.
