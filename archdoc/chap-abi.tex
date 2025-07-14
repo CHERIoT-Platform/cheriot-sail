@@ -173,6 +173,12 @@ Taking the address of such a function is simply a load from the import table.
 
 As with non-exported functions that change the interrupt status, the symbol in the export table will be local if the function is not also exported as a directly callable function.
 
+\section{Integer Calling Convention}
+
+The \cherimcu{} integer calling convention matches the standard RISC-V ABI in most respects, but diverges in one important area.
+While RISC-V passes aggregates consisting of up to two \xlen-byte members in registers, \cherimcu{} extends that to two capability members.
+This permits the passing of aggregates containing two capabilities in registers, matching the intent of the RISC-V ABI which allows passing aggregates containing two pointers in registers.
+
 \section{Relocations}
 \label{sec:relocs}
 
