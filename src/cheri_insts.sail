@@ -856,7 +856,7 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  */
 function clause execute LoadCapImm(cd, cs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
-  let auth_val = C(cs1);
+  let auth_val = cheri_load_store_base_from_regidx(cs1);
   let vaddrBits = auth_val.address + offset;
   if not(auth_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
@@ -950,7 +950,7 @@ union clause ast = StoreCapImm : (regidx, regidx, bits(12))
  */
 function clause execute StoreCapImm(cs2, cs1, imm) = {
   let offset : xlenbits = sign_extend(imm);
-  let auth_val = C(cs1);
+  let auth_val = cheri_load_store_base_from_regidx(cs1);
   let vaddrBits = auth_val.address + offset;
   let cs2_val = C(cs2);
   if not(auth_val.tag) then {
