@@ -150,6 +150,7 @@ function ext_init_regs () = {
   x15 = null_cap;
 
   misa->X() = 0b1;
+  misa->B() = 0b1; /* TODO this ought to be set by base model? */
   mccsr->d() = 0b1;
   mccsr->e() = 0b1;
   sccsr->d() = 0b1;
