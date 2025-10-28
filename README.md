@@ -25,7 +25,7 @@ opam install sail
 If you haven't already, set up your environment for `opam`, otherwise you will get `make: sail: No such file or directory` as an error during compilation:
 
 ```
-eval (opam env)
+eval $(opam env)
 ```
 
 Then clone the repo:
