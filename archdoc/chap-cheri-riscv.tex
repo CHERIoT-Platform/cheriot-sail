@@ -165,6 +165,10 @@ They are accessed via a new instruction, \insnriscvref{CSpecialRW}, which behave
   \begin{tabular}{clcccc@{}}
     \toprule
     & \textbf{Register} & \textbf{Reset} & \textbf{Replaces} \\ \midrule
+    \textbf{24} & Debug program counter capability (\DEPCC{})   & $0$       & \asm{dpc} \\
+    \textbf{25} & Debug scratch capability 0 (\DScratchCO{})    & $0$       & \asm{dscratch0} \\
+    \textbf{26} & Debug scratch capability 1 (\DScratchCI{})    & $0$       & \asm{dscratch1} \\
+    \textbf{27} & Reserved (ZTopC)                           & $0$       & -        \\
     \textbf{28} & Machine trap code capability (\MTCC{})     & \caprootX & \mtvec{} \\
     \textbf{29} & Machine trap data capability (\MTDC{})     & \caprootM & -        \\
     \textbf{30} & Machine scratch capability (\MScratchC{})  & \caprootS & -        \\
@@ -176,7 +180,8 @@ They are accessed via a new instruction, \insnriscvref{CSpecialRW}, which behave
   }
 \end{table}
 
-The \MTCC{} and \MEPCC{} SCRs replace existing RISC-V CSRs \asm{mtvec} and \asm{mepcc} respectively.
+The \MTCC{} and \MEPCC{} SCRs replace existing RISC-V CSRs \mtvec{} and \mepc{} respectively.
+If debug mode is supported then \DEPCC{}, \DScratchCO{} and \DScratchCI{} are simply the equivalent debug CSRs extended to capabilities.
 Attempting to access the legacy RISC-V CSR via the \asm{CSR*} instructions results in a Reserved Instruction exception.
 The special meaning associated with the CSR applies to the SCR's \caddress{} field and the value written is validated and legalized as follows:
 
