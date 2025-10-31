@@ -1,11 +1,11 @@
-\newcommand{\ghissue}[1]{\href{https://github.com/microsoft/cheriot-sail/issues/#1}{Issue #1}}
-\newcommand{\ghpr}[1]{\href{https://github.com/microsoft/cheriot-sail/pull/#1}{PR #1}}
+\newcommand{\ghissue}[1]{\href{https://github.com/CHERIoT-Platform/cheriot-sail/issues/#1}{Issue #1}}
+\newcommand{\ghpr}[1]{\href{https://github.com/CHERIoT-Platform/cheriot-sail/pull/#1}{PR #1}}
 \chapter{Version history}
 \label{chap:changes}
 
 \begin{description}
 \item[0.5] The version released as technical report MSR-TR-2023-6: \emph{CHERIoT: Rethinking security for low-cost embedded systems}, February 2023\footnote{\url{https://aka.ms/cheriot-tech-report}}.
-\item[0.6] The current, under-development version of the ISA. The following changes have been made since the previous released version:
+\item[1.0] As implemented in CHERIoT-Ibex 1.0 Release. The following changes have been made since 0.5:
   \begin{description}
     \item[\ghissue{20}, \ghpr{26}] Capability stores now clear the tag of the stored value instead of raising an exception in case of a store-local violation
     (i.e. an attempt to store a non-global capability via a capability without the store-local permission).
