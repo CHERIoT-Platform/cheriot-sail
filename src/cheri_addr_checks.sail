@@ -182,7 +182,7 @@ type ext_data_addr_error = (CapEx, capreg_idx)
 function ext_data_get_addr(base_reg : regidx, offset : xlenbits, acc : AccessType(ext_access_type), width : word_width)
          -> Ext_DataAddr_Check(ext_data_addr_error) = {
 
-  let auth_val = C(base_reg);
+  let auth_val = cheri_load_store_base_from_regidx(base_reg);
   let newAddr = auth_val.address + offset;
   let auth_idx = 0b0 @ base_reg;
 
