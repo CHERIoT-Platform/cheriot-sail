@@ -8,13 +8,49 @@ directories except for the snapshots of the Lem and Sail libraries
 in the prover_snapshots directory (which include copies of their
 licences), is subject to the BSD two-clause licence below.
 
-Copyright (c) 2017-2021 Prashanth Mundkur, Rishiyur S. Nikhil and
-  Bluespec, Inc., Jon French, Brian Campbell, Robert Norton-Wright,
-  Alasdair Armstrong, Thomas Bauereiss, Shaked Flur, Christopher Pulte,
-  Peter Sewell, Alexander Richardson, Hesham Almatary,
-  Jessica Clarke, Microsoft, for contributions by Robert Norton-Wright and
-  Nathaniel Wesley Filardo, Peter Rugg,
-  Aril Computer Corp., for contributions by Scott Johnson
+Copyright (c) 2017-2025
+   ahadali5000
+   Alasdair Armstrong
+   Alexander Richardson
+   Aril Computer Corp., for contributions by Scott Johnson
+   Ben Marshall
+   Bicheng Yang
+   Bilal Sakhawat
+   Brian Campbell
+   Chris Casinghino
+   Christopher Pulte
+   Codasip, for contributions by Tim Hutt
+   dylux
+   eroom1966
+   Google LLC, for contributions by its employees
+   Hesham Almatary
+   Jan Henrik Weinstock
+   Jessica Clarke
+   Jon French
+   Martin Berger
+   Michael Sammler
+   Microsoft, for contributions by its employees
+   Muhammad Bilal Sakhawat
+   Nathaniel Wesley Filardo
+   Paul A. Clarke
+   Peter Rugg
+   Peter Sewell
+   Philipp Tomsich
+   Prashanth Mundkur
+   Rafael Sene
+   Rishiyur S. Nikhil (Bluespec, Inc.)
+   Robert Norton-Wright
+   Scott Johnson (Aril Inc.)
+   Shaked Flur
+   Thibaut Pérami
+   Thomas Bauereiss
+   VRULL GmbH, for contributions by its employees
+   William McSpaddden
+   Xinlai Wan
+
+For a complete list of authors run this command:
+
+    git shortlog --summary --numbered --email
 
 All rights reserved.
 

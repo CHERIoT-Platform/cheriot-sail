@@ -185,7 +185,7 @@ Second, 64-bit floating values (\texttt{double} in C/C++) are passed and returne
 
 The relocations added to RISC-V for \cherimcu{} ABI are listed in \cref{tab:relocs}.
 As with existing RISC-V, some of these are in two forms because RISC-V loads and stores place their immediate operands in different locations.
-The relocation numbers here are the ones used in the current prototype and are expected to change prior to standardization.
+The relocation numbers here are in the global namespace, but we plan to move them to the vendor specfic range in future.
 
 \PCC{} or \CGP{} relative relocations consist of a pair of either \insnref{auipcc} or \insnref{auicgp} plus a 12-bit immediate instruction.
 In most cases (when the offset is within $\pm2$ KiB) linker relaxation can reduce this to a single instruction for \CGP-relative accesses.
