@@ -9,11 +9,11 @@ directories except for the snapshots of the Lem and Sail libraries in the
 prover_snapshots directory (which include copies of their licenses), is subject
 to the BSD two-clause licence below.
 
-Copyright (c) 2017-2021 Alasdair Armstrong, Thomas Bauereiss, Brian Campbell,
-  Jessica Clarke, Nathaniel Wesley Filardo (contributions prior to July 2020,
-  thereafter Microsoft), Alexandre Joannou, Microsoft, Prashanth Mundkur,
-  Robert Norton-Wright (contributions prior to March 2020, thereafter
-  Microsoft), Alexander Richardson, Peter Rugg, Peter Sewell
+Copyright (c) 2017-2025 Alasdair Armstrong, Thomas Bauereiss, Brian Campbell,
+  Jessica Clarke, Nathaniel Wesley Filardo, Alexandre Joannou,
+  Prashanth Mundkur, Robert Norton-Wright, Alexander Richardson, Peter Rugg,
+  Peter Sewell, and, for contributions by their employees: Google, Microsoft,
+  SCI Semiconductor.
 
 All rights reserved.
 
