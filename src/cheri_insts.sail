@@ -122,8 +122,8 @@ function clause execute(CJAL(imm, cd)) = {
       let sentry_type = if mstatus.MIE() == 0b1 then otype_sentry_bie else otype_sentry_bid;
       C(cd) = sealCap(linkCap, to_bits(cap_otype_width, sentry_type));
     } else {
-      /* Generate an unsealed return capability. */
-      C(cd) = linkCap;
+      /* Generate an IRQ-inheriting return capability. */
+      C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry_b));
     };
 
     nextPC = newPC;
@@ -168,8 +168,11 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
   } else if (isCapSealed(cs1_val) & imm != zeros()) |
-            not ((cd == zreg & cs1 == ra & isCapBackwardSentry(cs1_val)) |
-                 (cd == zreg & cs1 != ra & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val))) |
+            not ((cd == zreg & cs1 == ra & isCapBackwardNoninheritingSentry(cs1_val)) |
+                 (cd == zreg & cs1 != ra &
+                   (not(isCapSealed(cs1_val)) |
+                   isCapBackwardInheritingSentry(cs1_val) |
+                   isCapForwardInheritSentry(cs1_val))) |
                  (cd != zreg & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val))) |
                  (cd == ra & (not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val)))) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
@@ -195,9 +198,10 @@ function clause execute(CJALR(imm, cs1, cd)) = {
     } else {
       /*
        * Generate an unsealed return capability.  From the conditions above, it
-       * must be the case that cs1 is unsealed or a forward inheriting sentry.
+       * must be the case that cs1 is unsealed or an inheriting sentry (either
+       * forward or backward).
        */
-      C(cd) = linkCap;
+      C(cd) = sealCap(linkCap, to_bits(cap_otype_width, otype_sentry_b));
     };
 
     nextPC = newPC;
