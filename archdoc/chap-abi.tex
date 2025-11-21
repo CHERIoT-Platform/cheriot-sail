@@ -201,7 +201,7 @@ This would require more complex linker relaxations to retain good code size and 
 			\asm{CHERIOT_COMPARTMENT_LO_I}       & 221 & 12-bit \PCC- or \CGP-relative displacement for use in I-type instructions. \\
 			\asm{CHERIOT_COMPARTMENT_LO_S}       & 222 & 12-bit \PCC- or \CGP-relative displacement for use in S-type instructions. \\
 			\asm{CHERIOT_COMPARTMENT_SIZE}       & 223 & The size of the referenced symbol, applied to a \insnref{CSetBounds} instruction. \\
-			\asm{CHERIOT_CCALL}                  & 224 & An \insnref{auipcc} and \insnref{cjal} pair which may be relaxed as per \asm{CHERI_CCALL} in RISC-V CHERI, and if not will be relocated as per \asm{CHERIOT_COMPARTMENT_HI} and \asm{CHERIOT_COMPARTMENT_LO_I}. \\
+			\asm{CHERIOT_CCALL}                  & 224 & Deprecated. An \insnref{auipcc} and \insnref{cjal} pair which was relaxed as per \asm{CHERI_CCALL} in RISC-V CHERI, and if not was relocated as per \asm{CHERIOT_COMPARTMENT_HI} and \asm{CHERIOT_COMPARTMENT_LO_I}. \\
 		\end{tabular}
 	\caption{\label{tab:relocs}The relocations defined for the \cherimcu{} ABI}
 	\end{center}
