@@ -165,11 +165,11 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
 
   let isAllowedSentryType =
-    if (cd == zreg & cs1 == ra) then
+    if (cd == zreg & cs1 == ra) then /* this looks like a return */
         isCapBackwardSentry(cs1_val)
-    else if (cd == ra) then
+    else if (cd == ra) then /* this looks like an ordinary call */
         not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val)
-    else
+    else /* this looks like a tail or outlined call */
         not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val);
 
   if not (cs1_val.tag) then {
