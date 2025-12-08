@@ -164,14 +164,19 @@ function clause execute(CJALR(imm, cs1, cd)) = {
   let off : xlenbits = sign_extend(imm);
   let newPC = [cs1_val.address + off with 0 = bitzero]; /* clear bit zero as for RISCV JALR */
 
+  let isAllowedSentryType =
+    if (cd == zreg & cs1 == ra) then /* this looks like a return */
+        isCapBackwardSentry(cs1_val)
+    else if (cd == ra) then /* this looks like an ordinary call */
+        not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val)
+    else /* this looks like a tail or outlined call */
+        not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val);
+
   if not (cs1_val.tag) then {
     handle_cheri_reg_exception(CapEx_TagViolation, cs1);
     RETIRE_FAIL
   } else if (isCapSealed(cs1_val) & imm != zeros()) |
-            not ((cd == zreg & cs1 == ra & isCapBackwardSentry(cs1_val)) |
-                 (cd == zreg & cs1 != ra & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val))) |
-                 (cd != zreg & (not(isCapSealed(cs1_val)) | isCapForwardInheritSentry(cs1_val))) |
-                 (cd == ra & (not(isCapSealed(cs1_val)) | isCapForwardSentry(cs1_val)))) then {
+             not (isAllowedSentryType) then {
     handle_cheri_reg_exception(CapEx_SealViolation, cs1);
     RETIRE_FAIL
   } else if not (cs1_val.permit_execute) then {
