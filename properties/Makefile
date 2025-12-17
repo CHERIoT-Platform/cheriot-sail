@@ -9,7 +9,12 @@ SRCS+=proplib.sail
 SRCS+=props.sail
 SRCS+=props_setboundsrounddown.sail
 
-all: generate_smt run_smt
+SOLVER=z3
+
+auto:
+	sail ${SAIL_FLAGS} -smt -smt_auto -smt_auto_solver ${SOLVER} ${SRCS}
+
+manual: generate_smt run_smt
 
 generate_smt:
 	sail ${SAIL_FLAGS} -smt ${SRCS}
@@ -18,7 +23,7 @@ run_smt:
 	@failure=0; \
 	for prop in *.smt2; do \
 		echo -n "$$prop: "; \
-		output=$$(cvc4 $$prop); \
+		output=$$($(SOLVER) $$prop); \
 		if [ "$$output" = unsat ]; then \
 			echo "proved"; \
 		elif [ "$$output" = sat ]; then \
