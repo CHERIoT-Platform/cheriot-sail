@@ -488,17 +488,6 @@ function setCapBounds(cap, base, length) : (Capability, CapAddrBits, CapAddrBits
   (exact, newCap)
 }
 
-/* XXX this should go in prelude.sail but putting here for now to avoid submodule faff */
-val count_trailing_zeros : forall 'N, 'N >=0 . bits('N) -> range(0, 'N)
-function count_trailing_zeros(bv) = {
-  foreach(i from 0 to ('N - 1) by 1 in inc) {
-    if bv[i] == bitone then {
-      return i;
-    }
-  };
-  'N
-}
-
 /*!
  * Returns cap with the address and base set to the given base (exactly) and the
  * length set to the largest value less than or equal to given length that can
