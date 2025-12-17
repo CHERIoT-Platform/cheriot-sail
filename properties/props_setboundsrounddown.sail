@@ -59,3 +59,26 @@ function prop_setboundsrounddown_precise(reqBase1 : CapAddrBits, reqLen1 : CapAd
     (saneTop1 & validBase & validTop & betterTop) -->
       ((reqLen1 >=_u threshold14) & (t1 - (0b0 @ b1) == 0b0 @ threshold14))
 }
+
+/*!
+ * THIS checks that the resulting capability is aligned to at least the
+ * minimum of the requested base and length alignments (when the requested
+ * top is sane and the minimum alignment is at most 14). This is important for
+ * a use in the switcher where we want to ensure that stack pointers and bounds
+ * are aligned to at least 16 bytes as per discussion at
+ * https://github.com/CHERIoT-Platform/cheriot-rtos/pull/632 .
+ */
+$property
+function prop_setboundsrounddown_aligned(reqBase : CapAddrBits, reqLen : CapAddrBits) -> bool = {
+    let minReqAlign = min(count_trailing_zeros(reqBase),
+                          count_trailing_zeros(reqLen));
+
+    let c = setCapBoundsRoundDown(root_cap_mem, reqBase, reqLen);
+    let (resBase, resTop) = getCapBoundsBits(c);
+
+    let reqTop = (0b0 @ reqBase) + (0b0 @ reqLen);
+    let saneTop = reqTop <=_u 0b1@0x00000000;
+
+    (saneTop & (minReqAlign <= 14)) -->
+      (count_trailing_zeros(resTop) >= minReqAlign)
+}
