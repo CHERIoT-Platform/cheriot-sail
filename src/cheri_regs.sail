@@ -60,12 +60,33 @@
 /*  SUCH DAMAGE.                                                                         */
 /*=======================================================================================*/
 
+$ifdef CHERIOT_ABORT_CAP_REG_REVOKED
+val mem_read_cap_revoked : xlenbits -> bool
+
+/*
+ * Can this capability be identically round-tripped through memory?  We make an
+ * exception for zero-length capabilities, which convey the same set of
+ * permissions (that is, none whatsoever) whether tagged or not.
+ */
+function rwC_cap_ok(cap : regtype) -> bool =
+  if not(cap.tag) | (getCapLength(cap) == 0)
+   then true
+   else {
+    let base = getCapBaseBits(cap);
+    let granule_addr = align_down(log2_revocation_granule_size, base);
+    let revoked = mem_read_cap_revoked(granule_addr);
+    not(revoked)
+  }
+$else
+function rwC_cap_ok(cap : regtype) -> bool = true
+$endif
+
 /* accessors for capability representation */
 
 /* reads a given capability register, or the null capability if the argument is zero. */
 val rC : forall 'n, 0 <= 'n < 32. regno('n) -> regtype
 function rC r = {
-  match r {
+  let res : regtype = match r {
     0  => zero_reg,
     1  => x1,
     2  => x2,
@@ -83,7 +104,11 @@ function rC r = {
     14 => x14,
     15 => x15,
     _  => throw Error_not_rv32e_register()
-  }
+  };
+  if not(rwC_cap_ok(res)) then {
+    throw Error_internal_error()
+  };
+  res
 }
 
 /* writes a register with a capability value */
@@ -91,6 +116,9 @@ val wC : forall 'n, 0 <= 'n < 32. (regno('n), regtype) -> unit
 function wC (r, v) = {
   /* Encode and decode capability to normalise it prior to writing to register */
   let v = encCapabilityToCapability(v.tag, capToEncCap(v));
+  if not(rwC_cap_ok(v)) then {
+    throw Error_internal_error()
+  };
   match r {
     0  => (),
     1  => x1 = v,
