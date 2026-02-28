@@ -517,6 +517,9 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
    */
   /* What is the required alignment of base? */
   let e_b = count_trailing_zeros(base);
+  /* base = b * 2^e_b, such that e_b cannot be bigger.
+   * For any x <= e_b, base can be written as (b * 2^(e_b-x)) * 2^x, in which case B = truncate(b * 2^(e_b-x), cap_mantissa_width).
+   */
 
   /*
    * We're going to return something below the "band gap" in the encoding, so
@@ -525,10 +528,6 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
    * required by the base (e_b).
    */
   let E = min(14, min(e_l, e_b));
-  /* Let base = b * 2^e_b, such that e_b cannot be bigger.
-   * Irrespective of what E is, base can be written as (b * 2^(e_b-E)) * 2^E.
-   * b * 2^(e_b-E) contributes to the new value of B, the "mid" portion of base
-   */
 
   /* If e_l gets chosen as E, then the output length will be exactly floor(length/2^e_l) * 2^e_l
    *    This is true even if e_l = 0, and this output length is less than 2^9 as discussed in the properties above.
