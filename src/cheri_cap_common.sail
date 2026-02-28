@@ -513,7 +513,7 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
    * Note that we also have the following properties:
    * if e_l = 0, then length <= 2^9
    * if e_l > 0, then length >  2^9
-   * Note also that for any x, floor(length/2^x)*2^x <= length. In particular, this holds true when x = 2^l.
+   * Note also that for any x, floor(length/2^x)*2^x <= length. In particular, this holds true when x = 2^e_l.
    */
   /* What is the required alignment of base? */
   let e_b = count_trailing_zeros(base);
