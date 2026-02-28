@@ -499,6 +499,22 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
   let top : CapLenBits = ext_base + (0b0 @ length);
   /* Find smallest exponent that can represent required length. */
   let e_l : range(0, 23) = 23 - count_leading_zeros(truncateLSB(length, 23));
+  /* e_l = floor(log2 length), i.e. e_l is such that
+   * if length <= 2^9, then e_l = 0
+   * if length >  2^9, then e_l = x such that 2^x > floor(length/2^9) >= 2^(x-1)
+   *    In this case, the following properties of length and e_l hold (proofs left as exercise):
+   *     - e_l > 0
+   *     - 2^8 <= floor(length/2^e_l) < 2^9
+   *     - forall x > e_l, floor(length/2^x) < 2^8
+   *     - forall x < e_l, floor(length/2^x) >= 2^9
+   *    This means e_l is the value such that floor(length/2^e_l) is a 9-bit value with MSB set.
+   *    Any change to e_l would violate this statement.
+   *    Given a requested length, the closest we can reach is floor(length/2^e_l)*2^e_l.
+   * Note that we also have the following properties:
+   * if e_l = 0, then length <= 2^9
+   * if e_l > 0, then length >  2^9
+   * Note also that for any x, floor(length/2^x)*2^x <= length. In particular, this holds true when x = 2^l.
+   */
   /* What is the required alignment of base? */
   let e_b = count_trailing_zeros(base);
 
@@ -509,6 +525,16 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
    * required by the base (e_b).
    */
   let E = min(14, min(e_l, e_b));
+  /* Let base = b * 2^e_b, such that e_b cannot be bigger.
+   * Irrespective of what E is, base can be written as (b * 2^(e_b-E)) * 2^E.
+   * b * 2^(e_b-E) contributes to the new value of B, the "mid" portion of base
+   */
+
+  /* If e_l gets chosen as E, then the output length will be exactly floor(length/2^e_l) * 2^e_l
+   *    This is true even if e_l = 0, and this output length is less than 2^9 as discussed in the properties above.
+   * If e_l is not chosen as E, then E < e_l, and the closest length we can get is final_length = floor(length/2^E)*2^E.
+   *    Using the property forall x < e_l, floor(length/2^x) >= 2^9, the mantissa portion of final_length will exceed 9 bits.
+   */
 
   /* Extract B for this E */
   let B = truncate(base >> E, cap_mantissa_width);
@@ -517,6 +543,9 @@ function setCapBoundsRoundDown(cap, base, length) : (Capability, CapAddrBits, Ca
     /*
      * Base unrepresentable using chosen e_l or length over long; choose a
      * smaller exponent, E, and make a maximum length capability for that.
+     * This is the case when e_l is not chosen as E and so final_length exceeds 9 bits.
+     * So, we make final_length's mantissa the maximum allowed, namely 2^9-1.
+     * (Note that when T = B-1, mantissa portion of length is 2^9-1.)
      */
     B - 1;
   } else {
