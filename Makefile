@@ -168,7 +168,25 @@ BBV_DIR?=../bbv
 C_WARNINGS ?=
 #-Wall -Wextra -Wno-unused-label -Wno-unused-parameter -Wno-unused-but-set-variable -Wno-unused-function
 C_INCS = $(addprefix $(SAIL_RISCV_DIR)/c_emulator/,riscv_prelude.h riscv_platform_impl.h riscv_platform.h mem_dump.h)
-C_SRCS = $(addprefix $(SAIL_RISCV_DIR)/c_emulator/,riscv_prelude.c riscv_platform_impl.c riscv_platform.c mem_dump.c)
+# mem_dump.c removed from C_SRCS: the ELF dumper is now implemented in
+# mem_dump.cpp (C++ / ELFIO).  It is compiled separately as mem_dump.o and
+# linked into the RVFI target below.  The non-RVFI sim target does not call
+# mem_dump_elf (the call site is guarded by #ifdef RVFI_DII), so it does not
+# need the .o either.
+C_SRCS = $(addprefix $(SAIL_RISCV_DIR)/c_emulator/,riscv_prelude.c riscv_platform_impl.c riscv_platform.c)
+
+# C++ toolchain for mem.cpp / mem_dump.cpp.
+# Requires: g++ >= 7 and ELFIO headers (elfio/elfio.hpp).
+#
+# ELFIO_DIR – directory that contains the elfio/ subdirectory.
+#   Standard install (Ubuntu): sudo apt-get install libelfio-dev
+#                               -> /usr/include/elfio/elfio.hpp
+#   Manual install (e.g. git clone https://github.com/serge1/ELFIO):
+#                               make ELFIO_DIR=/opt/elfio rvfi
+ELFIO_DIR ?= /usr/include
+CXX       ?= g++
+# Reuse all C flags (include paths, optimisation, …) and add C++17 + ELFIO.
+CXX_FLAGS = $(C_FLAGS) -std=c++17 -I$(ELFIO_DIR)
 
 SOFTFLOAT_DIR    = $(SAIL_RISCV_DIR)/c_emulator/SoftFloat-3e
 SOFTFLOAT_INCDIR = $(SOFTFLOAT_DIR)/source/include
@@ -319,9 +337,41 @@ generated_definitions/c/riscv_rvfi_model_%.c: $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MOD
 	mkdir -p generated_definitions/c
 	$(SAIL) $(rvfi_preserve_fns) $(c_preserve_fns) $(SAIL_FLAGS) -O -Oconstant_fold -memo_z3 -c -c_include riscv_prelude.h -c_include riscv_platform.h -c_no_main $(SAIL_RVFI_SRCS) $(SAIL_RISCV_MODEL_DIR)/main.sail -o $(basename $@)
 
-c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
+# ---------------------------------------------------------------------------
+# C++ object files for the memory model and ELF dumper.
+#
+# mem.o       – Memory class (sparse std::map block store).
+# mem_dump.o  – mem_dump_elf() built with ELFIO.  Compiled with -DRVFI_DII
+#               so that any RVFI-specific code in included headers is active.
+# ---------------------------------------------------------------------------
+c_emulator/mem.o: $(SAIL_RISCV_DIR)/c_emulator/mem.cpp \
+                  $(SAIL_RISCV_DIR)/c_emulator/mem.hpp
 	mkdir -p c_emulator
-	$(CC) -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -o $@
+	$(CXX) -g $(C_WARNINGS) $(CXX_FLAGS) -c $< -o $@
+
+c_emulator/mem_dump.o: $(SAIL_RISCV_DIR)/c_emulator/mem_dump.cpp \
+                       $(SAIL_RISCV_DIR)/c_emulator/mem_dump.h \
+                       $(SAIL_RISCV_DIR)/c_emulator/mem.hpp \
+                       $(SAIL_RISCV_DIR)/c_emulator/riscv_platform_impl.h
+	mkdir -p c_emulator
+	$(CXX) -g $(C_WARNINGS) $(CXX_FLAGS) -DRVFI_DII -c $< -o $@
+
+# ---------------------------------------------------------------------------
+# RVFI DII simulator – links the pre-compiled C++ objects.
+#
+# The C sources (Sail model, riscv_sim.c, platform files) are compiled by
+# $(CC) (gcc).  $(CC) is also used as the linker driver; -lstdc++ brings in
+# the C++ standard-library runtime needed by mem.o / mem_dump.o.
+# ---------------------------------------------------------------------------
+c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c \
+    $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c \
+    c_emulator/mem.o c_emulator/mem_dump.o \
+    $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
+	mkdir -p c_emulator
+	$(CC) -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII \
+	  $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c \
+	  c_emulator/mem.o c_emulator/mem_dump.o \
+	  $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -lstdc++ -o $@
 
 latex: $(SAIL_SRCS) Makefile
 	$(SAIL) -latex -latex_prefix sailRISCV -o sail_latex_riscv $(SAIL_SRCS) properties/proplib.sail properties/props.sail properties/props_setboundsrounddown.sail
