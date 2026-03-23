@@ -1,0 +1,7 @@
+services:
+  sail-env:
+    build: .
+    volumes:
+      - ../:/home
+    stdin_open: true # allows interactive shell
+    tty: true
