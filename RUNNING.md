@@ -91,7 +91,7 @@ container at `/work`, so build outputs appear in your local directory.
 | File | Purpose |
 |---|---|
 | `Dockerfile` | Image definition — Ubuntu 22.04 base with all deps |
-| `docker-entrypoint.sh` | Sources the opam environment before every command |
+| `docker-entrypoint.sh` | Sources the opam environm before every command |
 | `docker-run.sh` | Convenience wrapper: builds image on first run, then runs commands |
 
 ### One-time image build
