@@ -65,6 +65,7 @@
 /* reads a given capability register, or the null capability if the argument is zero. */
 val rC : forall 'n, 0 <= 'n < 32. regno('n) -> regtype
 function rC r = {
+  let v : regtype =
   match r {
     0  => zero_reg,
     1  => x1,
@@ -83,7 +84,10 @@ function rC r = {
     14 => x14,
     15 => x15,
     _  => throw Error_not_rv32e_register()
-  }
+  };
+  /* kliu */
+  rvfi_rX64(r, capToBits(v));
+  v 
 }
 
 /* writes a register with a capability value */
@@ -111,7 +115,9 @@ function wC (r, v) = {
     _  => throw Error_not_rv32e_register()
   };
   if (r != 0) then {
-     rvfi_wX(r, v.address);
+     /* kliu */
+     /* rvfi_wX(r, v.address); */
+     rvfi_wX64(r, capToBits(v)); 
      if get_config_print_reg() then
        print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }
