@@ -85,8 +85,7 @@ function rC r = {
     15 => x15,
     _  => throw Error_not_rv32e_register()
   };
-  /* kliu */
-  rvfi_rX64(r, capToBits(v));
+  rvfi_rX65(r, bool_to_bits(v.tag) @ capToBits(v));
   v 
 }
 
@@ -115,9 +114,8 @@ function wC (r, v) = {
     _  => throw Error_not_rv32e_register()
   };
   if (r != 0) then {
-     /* kliu */
      /* rvfi_wX(r, v.address); */
-     rvfi_wX64(r, capToBits(v)); 
+     rvfi_wX65(r, bool_to_bits(v.tag) @ capToBits(v));
      if get_config_print_reg() then
        print_reg("x" ^ dec_str(r) ^ " <- " ^ RegStr(v));
   }

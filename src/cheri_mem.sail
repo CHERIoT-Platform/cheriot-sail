@@ -73,7 +73,11 @@ val mem_read_cap : (xlenbits, bool, bool, bool) -> MemoryOpResult(Capability)
 function mem_read_cap (addr, aq, rl, res) = {
   let result : MemoryOpResult((CapBits, bool)) = mem_read_meta(Read(Data), addr, cap_size, aq, rl, res, true);
   match result {
-    MemValue(v, tag) => MemValue(capBitsToCapability(tag, v)),
+    //MemValue(v, tag) => MemValue(capBitsToCapability(tag, v)),
+    MemValue(v, tag) => {
+     rvfi_read65(addr, bool_to_bits(tag) @ v);
+     MemValue(capBitsToCapability(tag, v))
+    },
     MemException(e)  => MemException(e) : MemoryOpResult(Capability)
   }
 }
@@ -131,11 +135,24 @@ function mem_write_ea_cap(addr, aq, rl, con) = {
  * memory ordering and atomic accesses (not used on single-core MCU).
  */
 val mem_write_cap : (xlenbits, Capability, bool, bool, bool) -> MemoryOpResult(bool)
+/*
 function mem_write_cap (addr, cap, aq, rl, con) = {
   let cap_bits = capToBits(cap);
-  /* Assume that conversion to bits and back does not change the capability.
-     TODO: State closed-form normalised-ness criterion that implies this,
-     and prove it as an invariant of capabilities in the system. */
   assert(capBitsToCapability(cap.tag, cap_bits) == cap);
   mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con)
+}
+*/
+function mem_write_cap (addr, cap, aq, rl, con) = {
+  let cap_bits = capToBits(cap);
+
+  assert(capBitsToCapability(cap.tag, cap_bits) == cap);
+
+  let result = mem_write_value_meta(addr, cap_size, cap_bits, Cap, cap.tag, aq, rl, con);
+
+  match result {
+    MemValue(_) => rvfi_write65(addr, bool_to_bits(cap.tag) @ cap_bits),
+    MemException(_) => ()
+  };
+
+  result
 }
