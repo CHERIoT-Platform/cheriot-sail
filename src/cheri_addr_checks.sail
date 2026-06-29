@@ -108,34 +108,45 @@ function pcc_access_system_regs () = PCC.access_system_regs
 
 type ext_fetch_addr_error = CapEx
 
+val check_mtcc_for_fetch_exception : unit -> unit
+function check_mtcc_for_fetch_exception() = {
+  if not(MTCC.tag)
+  then not_implemented("Invalid MTCC: tag is not set; exception would not be recoverable")
+  else if isCapSealed(MTCC)
+  then not_implemented("Invalid MTCC: MTCC is sealed; exception would not be recoverable")
+  else if not(MTCC.permit_execute)
+  then not_implemented("Invalid MTCC: permit_execute is not set; exception would not be recoverable")
+  else if not(MTCC.permit_load)
+  then not_implemented("Invalid MTCC: permit_load is not set; exception would not be recoverable")
+  else if not(inCapBounds(MTCC, MTCC.address, 2))
+  then not_implemented("Invalid MTCC: address is outside MTCC bounds; exception would not be recoverable")
+  else ()
+}
+
 val ext_fetch_check_pc : (xlenbits, xlenbits) -> Ext_FetchAddr_Check(ext_fetch_addr_error)
 function ext_fetch_check_pc(start_pc, pc) = {
   if   start_pc == pc
   then {
-    /* We need to perform the permission checks only for the first granule. */
-    if      not(PCC.tag)
+    if not(PCC.tag)
     then {
-      if MTCC.tag
-      then Ext_FetchAddr_Error(CapEx_TagViolation)
-      else {
-        /*
-         * We're going to infinite loop, installing an untagged MTCC to PCC
-         * and coming right back here.  Much better to just stop now.
-         *
-         * TODO: We'd rather go through the HTIF exit path, but the HTIF
-         * registers are not available to us at this point in the code, and
-         * changing that would require changes in the upstream submodule.
-         * Something to consider when we're rebasing against Zcheripurecap.
-         */
-        not_implemented ("Untagged PCC and MTCC infinite loops; stopping now")
-      }
+      check_mtcc_for_fetch_exception();
+      Ext_FetchAddr_Error(CapEx_TagViolation)
     }
     else if isCapSealed(PCC)
-    then    internal_error(__FILE__, __LINE__, "PCC should never be sealed")
+    then {
+      check_mtcc_for_fetch_exception();
+      internal_error(__FILE__, __LINE__, "PCC should never be sealed")
+    }
     else if not(PCC.permit_execute)
-    then    internal_error(__FILE__, __LINE__, "PCC should always be executable")
+    then {
+      check_mtcc_for_fetch_exception();
+      internal_error(__FILE__, __LINE__, "PCC should always be executable")
+    }
     else if not(inCapBounds(PCC, pc, 2))
-    then    Ext_FetchAddr_Error(CapEx_BoundsViolation)
+    then {
+      check_mtcc_for_fetch_exception();
+      Ext_FetchAddr_Error(CapEx_BoundsViolation)
+    }
     else    Ext_FetchAddr_OK(pc)
   } else {
     /* Perform only the bounds checks on the current granule, i.e. pc. */
