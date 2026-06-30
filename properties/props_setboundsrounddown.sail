@@ -9,7 +9,8 @@ function prop_setboundsrounddown_brief(reqBase : CapAddrBits, reqLen : CapAddrBi
     let (resBase, resTop) = getCapBoundsBits(c);
     let reqTop = (0b0 @ reqBase) + (0b0 @ reqLen);
     let saneTop = reqTop <=_u 0b1@0x00000000;
-    saneTop --> ((resBase == reqBase) & (resTop <=_u reqTop) & (0b0 @ resBase <=_u resTop))
+    saneTop --> ((resBase == reqBase) & (resTop <=_u reqTop) & 
+                 (0b0 @ resBase <=_u resTop) & capEncodable(c))
 }
 
 /*!
@@ -81,4 +82,25 @@ function prop_setboundsrounddown_aligned(reqBase : CapAddrBits, reqLen : CapAddr
 
     (saneTop & (minReqAlign <= 14)) -->
       (count_trailing_zeros(resTop) >= minReqAlign)
+}
+
+/*!
+ * THIS checks that any bounds returned by [setCapBoundsRoundDown] could also
+ * be returned by [setCapBounds] i.e. that setCapBoundsRoundDown doesn't use
+ * any non-canonoical encodings that setCapBounds won't produce. This is 
+ * important important for [prop_setbounds_monotonic] which uses an inductive
+ * argument based on the output of setCapBounds.
+ */
+$property
+function prop_setboundsrounddown_canonical(reqBase : CapAddrBits, reqLen : CapAddrBits) -> bool = {
+    let cRD = setCapBoundsRoundDown(root_cap_mem, reqBase, reqLen);
+    let (bRD, tRD) = getCapBoundsBits(cRD);
+    let reqTop = (0b0 @ reqBase) + (0b0 @ reqLen);
+    let saneTop = reqTop <=_u 0b1@0x00000000;
+    let rd_len = tRD - (0b0 @ bRD);
+    /* since setCapBoundsRoundDown can't produce a length greater than 2**32 - 1
+     * (checked below) we can safely truncate it to 32 bits and use setCapBounds
+     * to check that the resulting encoding is identical. */
+    let (exact, cSB) = setCapBounds(root_cap_mem, bRD, truncate(rd_len, 32));
+    (rd_len <_u 0b1@0x00000000) & (saneTop --> (exact & cRD == cSB))
 }
