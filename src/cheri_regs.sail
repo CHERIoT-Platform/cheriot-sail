@@ -123,6 +123,19 @@ function wC_bits(r: bits(5), v: regtype) -> unit = wC(unsigned(r), v)
 
 overload C = {rC_bits, wC_bits, rC, wC}
 
+function cheri_load_store_base_from_regidx(r : regidx) -> Capability =
+  if r != zreg
+   then C(r)
+   else if PCC.access_system_regs /* XXX: pcc_access_system_regs is later */
+         then MTDC /*
+                    * XXX: would be mscratch in RISC-V CHERI standard, which is
+                    * ASR-gated for reads and writes like our MTDC SCR.
+                    */
+         else PCC /*
+                   * XXX: would be mtidc in RISC-V CHERI standard, but all our
+                   * SCRs are ASR write-gated, so PCC might be an OK stand-in?
+                   */
+
 val ext_init_regs : unit -> unit
 function ext_init_regs () = {
   PCC = root_cap_exe;
