@@ -132,7 +132,8 @@ function ext_init_regs () = {
   PCC = root_cap_exe;
   nextPCC = root_cap_exe;
 
-  MTCC = root_cap_exe;
+  /* MTCC = root_cap_exe; */
+  MTCC = { root_cap_exe with address = 0x80000000 };
   MTDC = root_cap_mem;
   MScratchC = root_cap_seal;
   MEPCC = root_cap_exe;
