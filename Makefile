@@ -368,7 +368,7 @@ c_emulator/cheri_riscv_rvfi_%: generated_definitions/c/riscv_rvfi_model_%.c \
     c_emulator/mem.o c_emulator/mem_dump.o \
     $(C_INCS) $(C_SRCS) $(SOFTFLOAT_LIBS) Makefile
 	mkdir -p c_emulator
-	$(CC) -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII \
+	$(CC) -g $(C_WARNINGS) $(C_FLAGS) $< -DRVFI_DII -DCHERIOT_MODE \
 	  $(SAIL_RISCV_DIR)/c_emulator/riscv_sim.c \
 	  c_emulator/mem.o c_emulator/mem_dump.o \
 	  $(C_SRCS) $(SAIL_LIB_DIR)/*.c $(C_LIBS) -lstdc++ -o $@
