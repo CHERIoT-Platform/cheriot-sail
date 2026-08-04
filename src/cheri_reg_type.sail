@@ -66,6 +66,9 @@ let haveSplitRegFile = false
 /* register type */
 type regtype = Capability
 
+/* CHERIoT implements RV32E with 16 registers. */
+let rv32e_register_file : bool = true
+
 /* null cap */
 let zero_reg : regtype = null_cap
 
