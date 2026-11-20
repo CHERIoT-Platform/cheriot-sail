@@ -60,4 +60,8 @@
     \item[\ghpr{104}, \ghpr{105}] Modify the scalar calling convention ABI to more efficiently use capability registers for small records and 64-bit floating values.
     \item[\ghpr{112}] Change LLVM attribute prefix from \ccode{cheri} to \ccode{cheriot}.
   \end{description}
+\item[Unreleased] The following changes have been made since 1.0:
+  \begin{description}
+    \item[\ghissue{138}, \ghpr{139}] Clarify that all bits of a revoked capability other than its tag are unspecified, so \rvcheriasminsnref{CLC} may check revocation before or after the attenuation due to \cappermILG and \cappermLM.
+  \end{description}
 \end{description}
