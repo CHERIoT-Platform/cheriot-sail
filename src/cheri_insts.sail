@@ -848,6 +848,13 @@ union clause ast = LoadCapImm : (regidx, regidx, bits(12))
  * *imm*, and if *cs1*.**perms** does not grant **Permit_Load_Capability** then
  * *cd*.**tag** is cleared.
  *
+ * If *cs1*.**perms** does not grant **Permit_Load_Global** or
+ * **Permit_Load_Mutable**, a tagged *cd* is attenuated accordingly.
+ *
+ * If the revocation bit for *cd*.**base** is set, *cd*.**tag** is cleared.
+ * This may happen before or after the attenuation, so all other bits of a
+ * revoked *cd* are unspecified.
+ *
  * ## Exceptions
  *
  * An exception is raised if:
@@ -916,7 +923,11 @@ function clause execute LoadCapImm(cd, cs1, imm) = {
             cr.permit_store = false;
             cr.permit_load_mutable = false;
           };
-          /* Sealing capabilities are excluded from revocation */
+          /*
+           * Sealing capabilities are excluded from revocation. Revocation may
+           * also be checked before the attenuation above, and the resulting
+           * unattenuated bit pattern is equally valid.
+           */
           let isSealingCap = cr.permit_seal | cr.permit_unseal | cr.perm_user0;
           if (cr.tag & not(isSealingCap)) then {
             let base = getCapBaseBits(cr);
