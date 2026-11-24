@@ -72,10 +72,7 @@ function handle_trap_extension(p : Privilege, pc : xlenbits, u : option(unit)) -
   match p {
     Machine => {
       let (representable, mepcc) = setCapAddr(PCC, pc);
-      // mepcc might be unrepresentable if this is a bounds violation on PCC.
-      // In that case PCC should have had the tag cleared in ext_handle_fetch_check_error
-      assert(representable | not(mepcc.tag));
-      MEPCC   = mepcc
+      MEPCC   = clearTagIf(mepcc, not(representable))
     },
     _ => internal_error(__FILE__, __LINE__,"unsupported")
   }
