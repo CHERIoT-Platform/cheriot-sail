@@ -1,7 +1,11 @@
-\chapter{Potential revised bound encoding}
+\chapter{Potential revised bound encodings}
 
-Here we describe some possible improvements to bounds encoding described in \cref{sec:bounds}.
-In particular we seek to get a more efficient encoding (greater precision, fewer unusable encodings), and to reduce the complexity of the set bounds operation without using any more bits or excessive hardware complexity.
+Here we describe some possible improvements to the bounds encoding described in \cref{sec:bounds}.
+We have not yet fully evaluated these encodings, but elements of one or both may be included in future versions of the ISA.
+
+\section{Rounding up low bits of top}
+
+In this encoding variant we seek to get a more efficient encoding (greater precision, fewer unusable encodings), and to reduce the complexity of the set bounds operation without using any more bits or excessive hardware complexity.
 The proposed encoding is a minor alteration to the existing one based on two observations:
 \begin{enumerate}
 \item That incrementing $T$ in the set bounds operation would not be necessary if the lower $e$ bits of top were decoded as ones, instead of zeros.
@@ -35,4 +39,70 @@ This has a number of consequences:
 To retain software compatibility we do not propose to change the architectural definition of \ctop{}, therefore \insnriscvref{CGetLen} would have to take account of the inclusive top value (possibly by adding one to the result) and \insnriscvref{CSetBounds} would have to subtract one from the requested length prior to encoding.
 Other instructions will have to adjust bounds checks accordingly.
 
-We have not yet fully evaluated this encoding to see if it is an overall improvement, but include it here for consideration.
+\section{Implicit top bit of T / length}
+
+An alternative impovement in bounds encoding can be achieved using the observation that, for lengths greater than 255, the set bounds algorithm will always choose $e$ such that the top bit of $L=T-B$ is set.
+This is similar to IEEE floating point choosing the exponent to \emph{normalize} the mantissa.
+This trick allows us to store only 8-bits of $T$ and reconstruct the top bit using the same technique as CHERI Concentrate\cite{Woodruff2019}, as explained below.
+Using the bit saved by this we can expand the exponent to 5 bits, meaning we can represent all exponents between 0 and 24 with some to spare.
+We can use one of the spare exponents, 31, to encode the \emph{subnormal} case for lengths less that 256 (with $L[8] = 0)$.
+Lastly, so that the all-zero capability encodes zero length we store the exponent bitwise inverted.
+
+Putting these things together the encoding is revised to that shown in \cref{fig:implicitTformat}.
+The only difference from \cref{fig:capformat} is that E is expanded to five bits by taking a bit from T.
+
+\begin{figure}[h]
+\begin{bytefield}[bitwidth=\linewidth/32]{32}
+    \bitheader[endianness=big]{0,8,9,16,17,21,22,24,25,31} \\
+    \bitbox{1}{R} & \bitbox{6}{$p$'6} & \bitbox{3}{otype'3} & \bitbox{4}{E'5} & \bitbox{9}{T'8} & \bitbox{9}{B'9} \\
+    \bitbox[lrb]{32}{$a$'32}
+\end{bytefield}
+\caption{\label{fig:implicitTformat}Capability encoding with implicit T[8].}
+\end{figure}
+
+To decode this we decode the exponent, $e$:
+
+\begin{center}
+\begin{tabular}{r c l}
+$e$ &=& $ \begin{cases}
+              0,& \text{if } E = 0 \\
+              \lnot E,& \text{otherwise (bitwise inversion)} \\
+\end{cases} $ \\
+\end{tabular}
+\end{center}
+
+And the top bit of the 9-bit length $L$:
+
+\begin{center}
+\begin{tabular}{r c l}
+$L[8]$ &=& $ \begin{cases}
+              0,& \text{if } E = 0 \\
+              1,& \text{otherwise} \\
+\end{cases} $ \\
+\end{tabular}
+\end{center}
+
+Note that this means there are two encodings with $e=0$: $E=0$ for lengths in the range $0 \dots 255$ (subnormal), and $E=31$ for lengths $256 \dots 511$ (normal).
+
+Now, since $T = B + L$ we can recover $T[8]$ using $T[8] = B[8] \oplus L[8] \oplus C$ where $C$ is a potential carry-in from the overflow of $B[7..0] + L[7..0]$.
+The encoding stores $T[7..0]$, not $L[7..0]$, but we can infer the carry in by observing that if $T[7..0] \lt B[7..0]$ an overflow must have occurred. Hence,
+
+\begin{center}
+\begin{tabular}{r c l}
+$C$ &=& $ \begin{cases}
+              1,& \text{if } T[7..0] \lt B[7..0] \\
+              0,& \text{otherwise} \\
+\end{cases} $ \\
+\end{tabular}
+\end{center}
+
+Bounds decoding can then continue exactly as in \cref{sec:bounds} using $a$, $e$, $B$ and the reconstituted $T$.
+
+The advantage of this encoding is that it eliminates the gap in encodings between $e=14$ and $e=24$, enabling much better bounds precision for lengths greater than about 8 MiB (see \cref{tab:caplen}) while using no extra bits.
+In terms of hardware the bounds decoding is only slightly complicated by the need to compute T[8].
+Note that some hardware can be shared with the comparison of $T$ and $B$ for calculating the $a_\text{top}$ corrections.
+The set bounds operations are simplified as they no longer have a special case for exponents between 14 and 24.
+
+A minor variaton on this encoding would store 8 bits of $L$ and compute all bits of $T = B + L$ during decoding.
+This is conceptually simpler but may have a longer critical path because $T$ is required for the computation of the $a_\text{top}$ corrections that feed into the largest adder in the bounds calculation.
+A full evaluation of this will be required before adopting this encoding change.
